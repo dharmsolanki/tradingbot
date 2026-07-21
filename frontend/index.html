@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Options Trading Assistant — Demo Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --panel: #12151c;
+    --panel-2: #171b24;
+    --border: #212734;
+    --text: #e6e9ef;
+    --text-dim: #6c7688;
+    --teal: #2dd4bf;
+    --rose: #fb7185;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+  .brand .dot.live { background: var(--teal); box-shadow: 0 0 8px var(--teal); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .brand h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+  .brand .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .status-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    letter-spacing: .5px;
+  }
+  .status-pill.open { color: var(--teal); border-color: rgba(45,212,191,.35); }
+  .status-pill.closed { color: var(--text-dim); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 1px; background: var(--border); }
+
+  .panel {
+    background: var(--panel);
+    padding: 18px 20px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  #chart { height: 380px; }
+  #priceCanvas { width: 100%; height: 100%; display: block; }
+
+  .price-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .price-row .price { font-family: 'JetBrains Mono', monospace; font-size: 34px; font-weight: 600; transition: color .3s; }
+  .price-row .label { font-size: 12px; color: var(--text-dim); }
+
+  .signal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: .5px;
+    border: 1px solid var(--border);
+  }
+  .signal-badge.buy-ce { background: rgba(45,212,191,.1); color: var(--teal); border-color: rgba(45,212,191,.3); }
+  .signal-badge.buy-pe { background: rgba(251,113,133,.1); color: var(--rose); border-color: rgba(251,113,133,.3); }
+  .signal-badge.wait { background: rgba(251,191,36,.08); color: var(--amber); border-color: rgba(251,191,36,.25); }
+  .signal-badge.blocked { background: rgba(108,118,136,.1); color: var(--text-dim); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .stat-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+  .stat-box .k { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .stat-box .v { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; }
+  .v.pos { color: var(--teal); }
+  .v.neg { color: var(--rose); }
+
+  .reasons { margin-top: 14px; }
+  .reasons li { list-style: none; font-size: 12px; color: var(--text-dim); padding: 4px 0 4px 14px; position: relative; }
+  .reasons li::before { content: '·'; position: absolute; left: 0; color: var(--blue); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 10px; letter-spacing: .4px; }
+  td { padding: 8px; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; }
+  tr:last-child td { border-bottom: none; }
+  .empty-row td { text-align: center; color: var(--text-dim); padding: 20px; font-family: 'Space Grotesk', sans-serif; }
+
+  .position-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: var(--panel-2); }
+  .position-card .sym { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; }
+  .position-card .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; font-size: 12px; }
+  .position-card .rows div span { display: block; color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+  .position-card .rows div b { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot" id="liveDot"></span>
+    <div>
+      <h1>Options Trading Assistant</h1>
+      <div class="sub">Demo Mode &middot; Live Data &middot; No Real Orders</div>
+    </div>
+  </div>
+  <div class="status-pill" id="marketStatus">CONNECTING…</div>
+</header>
+
+<main>
+  <div class="col">
+    <div class="panel">
+      <div class="panel-title">Live Chart</div>
+      <div id="chart"><canvas id="priceCanvas"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Trade Book</div>
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Type</th><th>Entry</th><th>Exit</th><th>P/L</th><th>Status</th></tr>
+        </thead>
+        <tbody id="tradesBody">
+          <tr class="empty-row"><td colspan="6">No trades yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="panel-title">Underlying</div>
+      <div class="price-row">
+        <span class="price mono" id="spotPrice">—</span>
+        <span class="label">NIFTY 50</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Signal</div>
+      <div id="signalBadge" class="signal-badge wait">WAIT</div>
+      <ul class="reasons" id="reasonsList"></ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Demo Position</div>
+      <div id="positionArea">
+        <div style="color: var(--text-dim); font-size: 13px;">No open position</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Capital &amp; Performance</div>
+      <div class="grid-2">
+        <div class="stat-box"><div class="k">Capital</div><div class="v mono" id="capitalVal">—</div></div>
+        <div class="stat-box"><div class="k">Today P/L</div><div class="v mono" id="pnlTodayVal">—</div></div>
+        <div class="stat-box"><div class="k">Win Rate</div><div class="v mono" id="winRateVal">—</div></div>
+        <div class="stat-box"><div class="k">Avg RR</div><div class="v mono" id="avgRrVal">—</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<section style="background:var(--panel); border-top:1px solid var(--border); padding:20px 24px;">
+  <div class="panel-title" style="margin-bottom:16px;">Today's Recommendations</div>
+  <div id="recsArea">
+    <div style="color:var(--text-dim);font-size:13px;">No recommendations yet today.</div>
+  </div>
+</section>
+
+<script>
+const API_BASE = window.location.origin;
+const WS_URL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/live';
+
+function fmt(n, digits = 2) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function pnlClass(n) {
+  if (n === null || n === undefined) return '';
+  return n >= 0 ? 'pos' : 'neg';
+}
+
+// ---------- Vanilla Canvas Candlestick Chart (broker-style, no external library) ----------
+const canvas = document.getElementById('priceCanvas');
+const ctx = canvas.getContext('2d');
+let candles = []; // [timestamp, open, high, low, close, volume, oi]
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  drawChart();
+}
+
+function setCandles(newCandles) {
+  if (!newCandles || newCandles.length === 0) return;
+  // Backend/Upstox returns candles most-recent-first; chart needs oldest-first.
+  candles = [...newCandles].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  drawChart();
+}
+
+function drawChart() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  if (candles.length < 1) {
+    ctx.fillStyle = '#6c7688';
+    ctx.font = '12px JetBrains Mono, monospace';
+    ctx.fillText('Waiting for live candle data…', 16, h / 2);
+    return;
+  }
+
+  const highs = candles.map(c => c[2]);
+  const lows = candles.map(c => c[3]);
+  const min = Math.min(...lows);
+  const max = Math.max(...highs);
+  const range = (max - min) || 1;
+
+  const padTop = 16, padBottom = 20, padLeft = 8, padRight = 60;
+  const usableH = h - padTop - padBottom;
+  const usableW = w - padLeft - padRight;
+
+  const n = candles.length;
+  const slot = usableW / n;
+  const bodyWidth = Math.max(2, Math.min(14, slot * 0.6));
+
+  // Grid lines + price labels
+  ctx.strokeStyle = '#1a1f2b';
+  ctx.fillStyle = '#6c7688';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padTop + (usableH / 4) * i;
+    const priceAtY = max - (range / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(w - padRight + 45, y);
+    ctx.stroke();
+    ctx.fillText(fmt(priceAtY, 0), w - padRight + 6, y + 3);
+  }
+
+  const yFor = (price) => padTop + usableH - ((price - min) / range) * usableH;
+
+  candles.forEach((c, i) => {
+    const [, open, high, low, close] = c;
+    const x = padLeft + slot * i + slot / 2;
+    const isBull = close >= open;
+    const color = isBull ? '#2dd4bf' : '#fb7185';
+
+    // Wick
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, yFor(high));
+    ctx.lineTo(x, yFor(low));
+    ctx.stroke();
+
+    // Body
+    const yOpen = yFor(open);
+    const yClose = yFor(close);
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
+  });
+
+  // Latest price marker line + label
+  const last = candles[candles.length - 1][4];
+  const lastY = yFor(last);
+  const lastColor = last >= candles[0][1] ? '#2dd4bf' : '#fb7185';
+
+  ctx.strokeStyle = lastColor;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padLeft, lastY);
+  ctx.lineTo(w - padRight, lastY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = lastColor;
+  ctx.font = '600 11px JetBrains Mono, monospace';
+  ctx.fillRect(w - padRight + 2, lastY - 9, 56, 16);
+  ctx.fillStyle = '#0a0c10';
+  ctx.fillText(fmt(last, 0), w - padRight + 6, lastY + 3);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function renderState(state) {
+  const dot = document.getElementById('liveDot');
+  const statusPill = document.getElementById('marketStatus');
+
+  if (state.market_status === 'OPEN') {
+    dot.classList.add('live');
+    statusPill.textContent = 'MARKET OPEN';
+    statusPill.className = 'status-pill open';
+  } else if (state.market_status === 'CLOSED') {
+    dot.classList.remove('live');
+    statusPill.textContent = 'MARKET CLOSED';
+    statusPill.className = 'status-pill closed';
+  } else {
+    dot.classList.remove('live');
+    statusPill.textContent = state.market_status || 'UNKNOWN';
+    statusPill.className = 'status-pill';
+  }
+
+  const spotEl = document.getElementById('spotPrice');
+  if (state.spot_price !== null && state.spot_price !== undefined) {
+    spotEl.textContent = fmt(state.spot_price);
+    if (candles.length > 0) {
+      const sessionOpen = candles[0][1];
+      spotEl.style.color = state.spot_price >= sessionOpen ? 'var(--teal)' : 'var(--rose)';
+    }
+  }
+
+  if (state.candles_5m && state.candles_5m.length > 0) {
+    setCandles(state.candles_5m);
+  }
+
+  const badge = document.getElementById('signalBadge');
+  const decision = state.decision;
+  const optionType = state.signal && state.signal.option_type;
+
+  badge.className = 'signal-badge';
+  if (decision === 'TRADE' && optionType === 'CE') {
+    badge.classList.add('buy-ce');
+    badge.textContent = 'BUY CE';
+  } else if (decision === 'TRADE' && optionType === 'PE') {
+    badge.classList.add('buy-pe');
+    badge.textContent = 'BUY PE';
+  } else if (decision === 'BLOCKED') {
+    badge.classList.add('blocked');
+    badge.textContent = 'BLOCKED';
+  } else if (decision === 'WAIT') {
+    badge.classList.add('wait');
+    badge.textContent = 'WAIT — MANAGING POSITION';
+  } else {
+    badge.classList.add('wait');
+    badge.textContent = 'NO TRADE';
+  }
+
+  const reasonsList = document.getElementById('reasonsList');
+  reasonsList.innerHTML = '';
+  (state.reasons || []).forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = r;
+    reasonsList.appendChild(li);
+  });
+
+  const posArea = document.getElementById('positionArea');
+  const pos = state.open_position;
+  if (pos) {
+    posArea.innerHTML = `
+      <div class="position-card">
+        <div class="sym">${pos.symbol || ''}</div>
+        <div class="rows">
+          <div><span>Entry</span><b>${fmt(pos.entry_price)}</b></div>
+          <div><span>LTP</span><b>${fmt(pos.current_premium)}</b></div>
+          <div><span>Stop Loss</span><b>${fmt(pos.stop_loss)}</b></div>
+          <div><span>Target</span><b>${fmt(pos.target)}</b></div>
+          <div><span>Qty</span><b>${pos.quantity ?? '—'}</b></div>
+          <div><span>Live P/L</span><b class="${pnlClass(pos.live_pnl)}">${fmt(pos.live_pnl)}</b></div>
+        </div>
+      </div>`;
+  } else {
+    posArea.innerHTML = '<div style="color: var(--text-dim); font-size: 13px;">No open position</div>';
+  }
+}
+
+async function loadTrades() {
+  try {
+    const res = await fetch(`${API_BASE}/api/trades`);
+    const data = await res.json();
+    const body = document.getElementById('tradesBody');
+
+    if (!data.trades || data.trades.length === 0) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">No trades yet</td></tr>';
+      return;
+    }
+
+    body.innerHTML = data.trades.slice(0, 25).map(t => `
+      <tr>
+        <td>${t.symbol}</td>
+        <td>${t.option_type}</td>
+        <td>${fmt(t.entry_price)}</td>
+        <td>${t.exit_price !== null ? fmt(t.exit_price) : '—'}</td>
+        <td class="${pnlClass(t.net_pnl)}">${t.net_pnl !== null ? fmt(t.net_pnl) : '—'}</td>
+        <td>${t.status}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load trades', e);
+  }
+}
+
+async function loadAnalytics() {
+  try {
+    const res = await fetch(`${API_BASE}/api/analytics`);
+    const a = await res.json();
+    document.getElementById('winRateVal').textContent = a.total_trades ? `${a.win_rate}%` : '—';
+    document.getElementById('avgRrVal').textContent = a.total_trades ? a.average_rr : '—';
+  } catch (e) {
+    console.error('Failed to load analytics', e);
+  }
+}
+
+async function loadCapital() {
+  try {
+    const res = await fetch(`${API_BASE}/api/capital`);
+    const c = await res.json();
+    document.getElementById('capitalVal').textContent = fmt(c.capital, 0);
+    const pnlEl = document.getElementById('pnlTodayVal');
+    pnlEl.textContent = fmt(c.realized_pnl_today);
+    pnlEl.className = 'v mono ' + pnlClass(c.realized_pnl_today);
+  } catch (e) {
+    console.error('Failed to load capital', e);
+  }
+}
+
+function recStatusStyle(status) {
+  const map = {
+    WAITING:       'color:var(--amber)',
+    ACTIVE:        'color:var(--teal)',
+    TARGET_1_HIT:  'color:var(--teal)',
+    TARGET_HIT:    'color:var(--teal)',
+    SL_HIT:        'color:var(--rose)',
+    CLOSED:        'color:var(--text-dim)',
+    EXPIRED:       'color:var(--text-dim)',
+  };
+  return map[status] || '';
+}
+
+async function loadRecommendations() {
+  try {
+    const res = await fetch(`${API_BASE}/api/recommendations`);
+    const data = await res.json();
+    const area = document.getElementById('recsArea');
+
+    if (!data.recommendations || data.recommendations.length === 0) {
+      area.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No recommendations yet today.</div>';
+      return;
+    }
+
+    area.innerHTML = data.recommendations.map(r => {
+      const er = r.entry_range || {};
+      const reasons = (r.reasons || []).map(x => `<li>${x}</li>`).join('');
+      const ind = r.indicators || {};
+      return `
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;">${r.signal || '—'}</span>
+            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;${recStatusStyle(r.status)}">${r.status}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;font-size:12px;margin-bottom:12px;">
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Entry Range</span>
+              <b style="font-family:'JetBrains Mono',monospace;">₹${er.low||'—'}–${er.high||'—'}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Stop Loss</span>
+              <b style="font-family:'JetBrains Mono',monospace;color:var(--rose);">₹${fmt(r.stop_loss)}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Target 1</span>
+              <b style="font-family:'JetBrains Mono',monospace;color:var(--teal);">₹${fmt(r.target_1)}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Target 2</span>
+              <b style="font-family:'JetBrains Mono',monospace;color:var(--teal);">₹${fmt(r.target_2)}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Confidence</span>
+              <b style="font-family:'JetBrains Mono',monospace;">${r.confidence||'—'}%</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">RR Ratio</span>
+              <b style="font-family:'JetBrains Mono',monospace;">1:${r.rr_ratio||'—'}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Live P/L</span>
+              <b style="font-family:'JetBrains Mono',monospace;" class="${r.live_pnl>=0?'pos':'neg'}">${fmt(r.live_pnl)}</b></div>
+            <div><span style="color:var(--text-dim);display:block;font-size:10px;text-transform:uppercase;">Trend</span>
+              <b style="font-family:'JetBrains Mono',monospace;">${r.market_trend||'—'}</b></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">${r.strategy_name||''}</div>
+          ${reasons ? `<ul style="margin:0;padding-left:16px;font-size:11px;color:var(--text-dim);">${reasons}</ul>` : ''}
+          <div style="font-size:10px;color:var(--text-dim);margin-top:8px;">Generated: ${r.generated_at||'—'}</div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Failed to load recommendations', e);
+  }
+}
+
+function connectWebSocket() {
+  const ws = new WebSocket(WS_URL);
+
+  ws.onmessage = (event) => {
+    const state = JSON.parse(event.data);
+    renderState(state);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('marketStatus').textContent = 'RECONNECTING…';
+    setTimeout(connectWebSocket, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connectWebSocket();
+loadTrades();
+loadAnalytics();
+loadCapital();
+loadRecommendations();
+setInterval(loadTrades, 15000);
+setInterval(loadAnalytics, 15000);
+setInterval(loadCapital, 10000);
+setInterval(loadRecommendations, 10000);
+</script>
+
+</body>
+</html>
