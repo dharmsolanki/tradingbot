@@ -43,6 +43,7 @@ REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "10"))
 INSTRUMENTS = {
     "NIFTY": "NSE_INDEX|Nifty 50",
     "BANKNIFTY": "NSE_INDEX|Nifty Bank",
+    "SENSEX": "BSE_INDEX|SENSEX",
 }
 
 DEFAULT_INSTRUMENT = os.getenv("DEFAULT_INSTRUMENT", "NIFTY")
@@ -66,3 +67,5 @@ API_PORT = int(os.getenv("API_PORT", "8000"))
 # ==========================
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+MIN_PROFIT_RUPEES = float(os.getenv("MIN_PROFIT_RUPEES", "100"))

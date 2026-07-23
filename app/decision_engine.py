@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from app import strategy
+from app import strategy, strategy_orb
 from app.option_service import OptionService
 from app.risk import (
     calculate_position_size,
@@ -102,16 +102,32 @@ class DecisionEngine:
 
         # ---------- Signal ----------
 
-        indicators = calculate_indicators_multi_timeframe(candles_5m, candles_15m)
+        if strategy.SIGNAL_MODE == "ORB":
+            from app.signal_engine_orb import generate_orb_signal
 
-        signal = generate_signal_v2(indicators["5m"], indicators["15m"])
+            signal = generate_orb_signal(
+                candles=candles_5m,
+                # already_traded=trades_today_count >= strategy_orb.ORB_MAX_TRADES,
+                already_traded=False,
+            )
+            # Normalise ORB signal to same shape as EMA signal
+            signal["trend"] = signal.get("reason", "ORB")
+            signal["entry"] = {"reasons": [signal.get("reason", "")], "score": 0}
+            signal["option_type"] = signal.get("option_type")
+        else:
+            indicators = calculate_indicators_multi_timeframe(candles_5m, candles_15m)
+            signal = generate_signal_v2(indicators["5m"], indicators["15m"])
 
         if signal["signal"] != "BUY":
             return {
                 "decision": "NO_TRADE",
                 "signal": signal,
                 "trade_plan": None,
-                "reasons": ["No high-probability setup on current candles."],
+                "reasons": [
+                    signal.get(
+                        "reason", "No high-probability setup on current candles."
+                    )
+                ],
             }
 
         if signal["confidence"] < strategy.MIN_CONFIDENCE:
@@ -127,12 +143,15 @@ class DecisionEngine:
 
         # ---------- Option Selection ----------
 
-        chain = self.option_service.get_option_chain(token, instrument_key)
+        chain, lot_size_map = self.option_service.get_option_chain(
+            token, instrument_key
+        )
 
         option = self.option_service.get_option(
             chain,
             option_type=signal["option_type"],
             moneyness=strategy.OPTION_MODE,
+            lot_size_map=lot_size_map,
         )
 
         liquidity = self.option_service.check_liquidity(

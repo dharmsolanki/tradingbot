@@ -6,6 +6,13 @@ Signal Engine in values ko use karega.
 """
 
 # ==========================
+# Strategy Mode
+# ==========================
+# "EMA"  — original Multi-Timeframe EMA+MACD+RSI strategy
+# "ORB"  — Opening Range Breakout strategy
+SIGNAL_MODE = "ORB"
+
+# ==========================
 # EMA
 # ==========================
 
@@ -62,7 +69,7 @@ TARGET_PERCENT = STOP_LOSS_PERCENT * RISK_REWARD_RATIO
 DEFAULT_QUANTITY = 1
 
 # Maximum capital risk per trade
-MAX_RISK_PER_TRADE = 1.0
+MAX_RISK_PER_TRADE = 10.0
 
 # ==========================
 # Signal
@@ -84,13 +91,13 @@ STRIKE_STEP = 50  # NIFTY
 # ==========================
 
 # Virtual capital for demo trading (not real money).
-STARTING_CAPITAL = 100000.0
+STARTING_CAPITAL = 10000.0
 
 # Stop trading for the day once realized loss exceeds this % of capital.
 MAX_DAILY_LOSS_PERCENT = 3.0
 
 # Maximum number of trades allowed per trading day.
-MAX_TRADES_PER_DAY = 5
+MAX_TRADES_PER_DAY = 3
 
 # Once a trade is in profit by this % of risk, move stop loss to entry.
 TRAILING_TRIGGER_RR = 1.0
@@ -113,3 +120,4 @@ ENTRY_RANGE_PERCENT = 2.0
 # Label shown on published recommendations, describing the confirmation
 # logic actually used (multi-timeframe trend + entry confirmation).
 STRATEGY_NAME = "Multi-Timeframe EMA + MACD + RSI Confirmation"
+MIN_DAILY_PROFIT_RUPEES = 1000.0

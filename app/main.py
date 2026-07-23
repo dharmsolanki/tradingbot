@@ -70,6 +70,7 @@ recommendation_engine = RecommendationEngine(
 analytics = Analytics(repository)
 
 INSTRUMENT_KEY = config.INSTRUMENTS[config.DEFAULT_INSTRUMENT]
+_current_instrument = config.DEFAULT_INSTRUMENT
 
 _connected_clients: List[WebSocket] = []
 _latest_state: Dict[str, Any] = {
@@ -80,6 +81,7 @@ _latest_state: Dict[str, Any] = {
     "decision": None,
     "open_position": None,
     "reasons": [],
+    "instrument": config.DEFAULT_INSTRUMENT,
     "updated_at": None,
 }
 
@@ -139,6 +141,7 @@ def get_capital_state() -> Dict[str, float]:
         "realized_pnl_today": realized_today,
         "realized_pnl_total": realized_total,
         "trades_today_count": len(closed_today),
+        "daily_target_reached": realized_today >= strategy.MIN_DAILY_PROFIT_RUPEES,
     }
 
 
@@ -250,12 +253,29 @@ async def _evaluate_new_trade(token: str) -> None:
 
     candles = market.get_multi_timeframe_candles(token, INSTRUMENT_KEY)
 
+    if strategy.SIGNAL_MODE == "ORB":
+        candles_5m_today = market.get_intraday_candles(
+            token=token,
+            instrument_key=INSTRUMENT_KEY,
+            unit="minutes",
+            interval=5,
+        )
+    else:
+        candles_5m_today = candles["5m"]
     capital_state = get_capital_state()
+
+    # Daily profit target check
+    if capital_state["realized_pnl_today"] >= strategy.MIN_DAILY_PROFIT_RUPEES:
+        _latest_state["decision"] = "BLOCKED"
+        _latest_state["reasons"] = [
+            f"Daily profit target ₹{strategy.MIN_DAILY_PROFIT_RUPEES} reached. Trade band karo aaj ke liye!"
+        ]
+        return
 
     result = decision_engine.evaluate(
         token=token,
         instrument_key=INSTRUMENT_KEY,
-        candles_5m=candles["5m"],
+        candles_5m=candles_5m_today,
         candles_15m=candles["15m"],
         capital=capital_state["capital"],
         realized_pnl_today=capital_state["realized_pnl_today"],
@@ -267,6 +287,21 @@ async def _evaluate_new_trade(token: str) -> None:
     _latest_state["decision"] = result["decision"]
     _latest_state["reasons"] = result["reasons"]
     _latest_state["open_position"] = None
+
+    # Debug: log signal scores every cycle so we can see why NO_TRADE
+    sig = result.get("signal")
+    if sig:
+        trend = sig.get("trend", {})
+        entry = sig.get("entry", {})
+        logger.info(
+            "SIGNAL DEBUG | trend=%s(score=%s) entry=%s(score=%s) confidence=%s decision=%s",
+            trend.get("trend") if isinstance(trend, dict) else trend,
+            trend.get("score") if isinstance(trend, dict) else "?",
+            entry.get("entry") if isinstance(entry, dict) else entry,
+            entry.get("score") if isinstance(entry, dict) else "?",
+            sig.get("confidence"),
+            result["decision"],
+        )
 
     if result["decision"] == "TRADE":
         trade_plan = result["trade_plan"]
@@ -308,39 +343,60 @@ async def _evaluate_new_trade(token: str) -> None:
 
 
 async def _manage_open_trade(token: str, open_trade: Dict[str, Any]) -> None:
-    """Check live premium against SL/target and close the trade if hit."""
+    """
+    Manage open trade with:
+    1. Trailing SL — locks profit as premium rises
+    2. Minimum profit lock — once MIN_PROFIT_RUPEES earned, SL moves to breakeven+
+    3. Time exit — force close at 3:15 PM
+    4. Manual exit via API
+    """
 
-    from app.risk import update_trailing_stop
+    from app.config import MIN_PROFIT_RUPEES
 
     instrument_key = open_trade["instrument_key"]
-
     current_premium = market.get_ltp(token, instrument_key)
 
     entry = open_trade["entry_price"]
     stop_loss = open_trade["stop_loss"]
     target = open_trade["target"]
-    original_risk = entry - stop_loss if entry > stop_loss else (entry * strategy.STOP_LOSS_PERCENT / 100)
+    quantity = open_trade["quantity"]
 
-    new_stop_loss = update_trailing_stop(
-        option_type=open_trade["option_type"],
-        entry=entry,
-        current_stop_loss=stop_loss,
-        current_premium=current_premium,
-        risk=original_risk,
-    )
+    live_pnl = round((current_premium - entry) * quantity, 2)
 
+    original_risk = entry * strategy.STOP_LOSS_PERCENT / 100
+
+    new_stop_loss = stop_loss
+
+    # Phase 1: Min profit achieved — move SL to breakeven+
+    if live_pnl >= MIN_PROFIT_RUPEES:
+        breakeven = round(entry + (MIN_PROFIT_RUPEES / quantity), 2)
+        new_stop_loss = max(stop_loss, breakeven)
+
+    # Phase 2: Trail SL behind current premium by original risk distance
+    # SL is always original_risk points below current premium — never hits instantly
+    if live_pnl >= MIN_PROFIT_RUPEES:
+        trail_sl = round(current_premium - original_risk, 2)
+        new_stop_loss = max(new_stop_loss, trail_sl)
+
+    # Update SL in DB if changed
     if new_stop_loss != stop_loss:
         db.execute(
             "UPDATE paper_trades SET stop_loss = ? WHERE trade_id = ?",
             (new_stop_loss, open_trade["trade_id"]),
         )
         stop_loss = new_stop_loss
+        logger.info("Trailing SL updated to %.2f (live_pnl=%.2f)", stop_loss, live_pnl)
 
-    live_pnl = round((current_premium - entry) * open_trade["quantity"], 2)
+    # ==========================
+    # Exit Conditions
+    # ==========================
 
     exit_reason = None
+    current_time = datetime.now().strftime("%H:%M")
 
-    if current_premium <= stop_loss:
+    if current_time >= "15:15":
+        exit_reason = "TIME_EXIT"
+    elif current_premium <= stop_loss:
         exit_reason = constants.STOP_LOSS_HIT
     elif current_premium >= target:
         exit_reason = constants.TARGET_HIT
@@ -352,23 +408,27 @@ async def _manage_open_trade(token: str, open_trade: Dict[str, Any]) -> None:
             exit_reason=exit_reason,
         )
         logger.info(
-            "Closed demo trade %s: %s (net_pnl=%s)",
+            "Closed trade %s: %s (net_pnl=%.2f)",
             open_trade["trade_id"],
             exit_reason,
             net_pnl,
         )
         _latest_state["open_position"] = None
         _latest_state["decision"] = "NO_TRADE"
-        _latest_state["reasons"] = [f"Trade closed: {exit_reason}"]
+        _latest_state["reasons"] = [f"Trade closed: {exit_reason} | P/L: ₹{net_pnl}"]
         return
 
     _latest_state["open_position"] = {
         **open_trade,
         "current_premium": current_premium,
         "live_pnl": live_pnl,
+        "trailing_sl": stop_loss,
     }
     _latest_state["decision"] = "WAIT"
-    _latest_state["reasons"] = ["Managing open position."]
+    _latest_state["reasons"] = [
+        f"Managing position | Premium: ₹{current_premium} | "
+        f"Trailing SL: ₹{stop_loss} | Live P/L: ₹{live_pnl}"
+    ]
 
 
 @app.on_event("startup")
@@ -399,6 +459,35 @@ def get_state() -> Dict[str, Any]:
     """Full latest live state (same payload pushed over WebSocket)."""
 
     return _latest_state
+
+
+@app.post("/api/instrument")
+async def set_instrument(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch active instrument (NIFTY / SENSEX / BANKNIFTY)."""
+    global INSTRUMENT_KEY, _current_instrument
+
+    name = payload.get("instrument", "").upper()
+
+    if name not in config.INSTRUMENTS:
+        return {
+            "success": False,
+            "message": f"Unknown instrument. Choose from: {list(config.INSTRUMENTS.keys())}",
+        }
+
+    INSTRUMENT_KEY = config.INSTRUMENTS[name]
+    _current_instrument = name
+
+    _latest_state["instrument"] = name
+
+    logger.info("Instrument switched to %s (%s)", name, INSTRUMENT_KEY)
+
+    return {"success": True, "instrument": name, "key": INSTRUMENT_KEY}
+
+
+@app.get("/api/instrument")
+def get_instrument() -> Dict[str, Any]:
+    """Get currently active instrument."""
+    return {"instrument": _current_instrument, "key": INSTRUMENT_KEY}
 
 
 @app.get("/api/capital")
@@ -466,4 +555,37 @@ async def websocket_live(websocket: WebSocket) -> None:
 
 
 # Serve the dashboard frontend at "/"
-app.mount("/", StaticFiles(directory=str(config.BASE_DIR / "frontend"), html=True), name="frontend")
+app.mount(
+    "/",
+    StaticFiles(directory=str(config.BASE_DIR / "frontend"), html=True),
+    name="frontend",
+)
+
+
+@app.post("/api/trade/exit")
+async def manual_exit() -> Dict[str, Any]:
+    """Manually close the open trade at current market price."""
+
+    open_trade = repository.get_open_trade()
+
+    if open_trade is None:
+        return {"success": False, "message": "No open trade to exit."}
+
+    try:
+        token = auth.get_token()
+        current_premium = market.get_ltp(token, open_trade["instrument_key"])
+
+        net_pnl = repository.close_trade(
+            trade_id=open_trade["trade_id"],
+            exit_price=current_premium,
+            exit_reason="MANUAL_EXIT",
+        )
+
+        _latest_state["open_position"] = None
+        _latest_state["decision"] = "NO_TRADE"
+        _latest_state["reasons"] = [f"Manual exit | P/L: ₹{net_pnl}"]
+
+        return {"success": True, "exit_price": current_premium, "net_pnl": net_pnl}
+
+    except Exception as exc:
+        return {"success": False, "message": str(exc)}

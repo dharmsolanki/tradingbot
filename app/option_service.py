@@ -44,11 +44,6 @@ class OptionService:
         token,
         instrument_key,
     ):
-        """
-        Returns live option chain
-        for nearest expiry.
-        """
-
         contracts = self.market.get_option_contracts(
             token=token,
             instrument_key=instrument_key,
@@ -56,13 +51,19 @@ class OptionService:
 
         expiry = self.get_nearest_expiry(contracts)
 
+        lot_size_map = {
+            c["instrument_key"]: c["lot_size"]
+            for c in contracts
+            if c.get("instrument_key") and c.get("lot_size")
+        }
+
         chain = self.market.get_option_chain(
             token=token,
             instrument_key=instrument_key,
             expiry_date=expiry,
         )
 
-        return chain
+        return chain, lot_size_map
 
     @staticmethod
     def get_atm_option(chain):
@@ -102,6 +103,7 @@ class OptionService:
         option_type="CE",
         moneyness="ATM",
         steps=1,
+        lot_size_map=None,
     ):
         """
         Returns ATM / ITM / OTM option.
@@ -204,10 +206,16 @@ class OptionService:
 
         # ---------- Return ----------
 
-        lot_size = option.get("lot_size")
+        lot_size = None
+
+        if lot_size_map and instrument_key:
+            lot_size = lot_size_map.get(instrument_key)
 
         if not lot_size:
-            raise ValueError("lot_size missing for selected option.")
+            raise ValueError(
+                f"lot_size not found for instrument_key={instrument_key}. "
+                "Verify option contracts API returned lot_size."
+            )
 
         return {
             "spot": spot,
