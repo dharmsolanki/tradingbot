@@ -554,14 +554,6 @@ async def websocket_live(websocket: WebSocket) -> None:
             _connected_clients.remove(websocket)
 
 
-# Serve the dashboard frontend at "/"
-app.mount(
-    "/",
-    StaticFiles(directory=str(config.BASE_DIR / "frontend"), html=True),
-    name="frontend",
-)
-
-
 @app.post("/api/trade/exit")
 async def manual_exit() -> Dict[str, Any]:
     """Manually close the open trade at current market price."""
@@ -589,3 +581,11 @@ async def manual_exit() -> Dict[str, Any]:
 
     except Exception as exc:
         return {"success": False, "message": str(exc)}
+
+
+# Serve the dashboard frontend at "/"
+app.mount(
+    "/",
+    StaticFiles(directory=str(config.BASE_DIR / "frontend"), html=True),
+    name="frontend",
+)

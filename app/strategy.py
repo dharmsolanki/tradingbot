@@ -69,13 +69,13 @@ TARGET_PERCENT = STOP_LOSS_PERCENT * RISK_REWARD_RATIO
 DEFAULT_QUANTITY = 1
 
 # Maximum capital risk per trade
-MAX_RISK_PER_TRADE = 10.0
+MAX_RISK_PER_TRADE = 3.0
 
 # ==========================
 # Signal
 # ==========================
 
-MIN_CONFIDENCE = 80
+MIN_CONFIDENCE = 75
 
 # ==========================
 # Option Selection
@@ -91,13 +91,13 @@ STRIKE_STEP = 50  # NIFTY
 # ==========================
 
 # Virtual capital for demo trading (not real money).
-STARTING_CAPITAL = 10000.0
+STARTING_CAPITAL = 100000.0  # virtual demo capital
 
 # Stop trading for the day once realized loss exceeds this % of capital.
 MAX_DAILY_LOSS_PERCENT = 3.0
 
 # Maximum number of trades allowed per trading day.
-MAX_TRADES_PER_DAY = 3
+MAX_TRADES_PER_DAY = 10
 
 # Once a trade is in profit by this % of risk, move stop loss to entry.
 TRAILING_TRIGGER_RR = 1.0

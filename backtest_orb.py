@@ -76,7 +76,13 @@ def run():
 
         for i in range(1, len(day_candles)):
             candles_so_far = day_candles[: i + 1]
-            signal = generate_orb_signal(candles_so_far, already_traded=signal_taken)
+            # Historical candles for trend lookback (all candles before today)
+            hist = [c for c in candles_all if c[0][:10] < date]
+            signal = generate_orb_signal(
+                candles=candles_so_far,
+                already_traded=signal_taken,
+                historical_candles=hist,
+            )
 
             if signal["signal"] != "BUY":
                 continue

@@ -9,8 +9,8 @@ Kept separate from strategy.py so both strategies can coexist.
 ORB_END_TIME = "09:30"  # HH:MM — candles up to this time form the range
 
 # Minimum range size to consider valid (avoid flat/holiday opens)
-ORB_MIN_RANGE_POINTS = 30  # NIFTY points
-ORB_MAX_RANGE_POINTS = 300  # range too big = skip
+ORB_MIN_RANGE_POINTS = 50  # NIFTY points
+ORB_MAX_RANGE_POINTS = 600  # range too big = skip
 
 # Risk/Reward
 ORB_RISK_REWARD = 1.5  # Target = SL distance x 2

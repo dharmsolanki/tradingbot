@@ -73,9 +73,7 @@ class MarketData:
             raise MarketDataError(f"GET {url} | Request failed: {exc}") from exc
 
         if response.status_code == 401:
-            raise AuthenticationError(
-                f"GET {response.url} | Invalid or expired token."
-            )
+            raise AuthenticationError(f"GET {response.url} | Invalid or expired token.")
 
         if response.status_code != 200:
             raise MarketDataError(

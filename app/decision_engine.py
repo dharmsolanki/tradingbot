@@ -109,6 +109,7 @@ class DecisionEngine:
                 candles=candles_5m,
                 # already_traded=trades_today_count >= strategy_orb.ORB_MAX_TRADES,
                 already_traded=False,
+                historical_candles=candles_15m,  # trend ke liye lookback
             )
             # Normalise ORB signal to same shape as EMA signal
             signal["trend"] = signal.get("reason", "ORB")

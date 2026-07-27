@@ -1,35 +1,18 @@
 """
 signal_engine_orb.py
 
-Opening Range Breakout signal engine.
-
-Logic:
-  1. Identify the Opening Range (9:15 to ORB_END_TIME candles)
-  2. After range is set, scan each subsequent candle
-  3. If close > range_high → BUY CE
-  4. If close < range_low  → BUY PE
-  5. SL = opposite end of range
-  6. Target = entry + (risk × ORB_RISK_REWARD)
-
-No existing files are modified.
+Opening Range Breakout signal engine with trend filter,
+volume confirmation, and 2-candle breakout confirmation.
 """
 
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from app import strategy_orb as orb_config
+from app import strategy
 
 
 def get_opening_range(candles: List[List]) -> Optional[Dict[str, Any]]:
-    """
-    Extract opening range from candles.
-
-    Args:
-        candles: Sorted chronologically. Each candle:
-                 [timestamp, open, high, low, close, volume, oi]
-
-    Returns:
-        {"high": float, "low": float, "candles_used": int} or None
-    """
+    """Extract opening range from 9:15-ORB_END_TIME candles."""
 
     range_candles = [
         c
@@ -40,14 +23,13 @@ def get_opening_range(candles: List[List]) -> Optional[Dict[str, Any]]:
     if not range_candles:
         return None
 
-    range_high = max(c[2] for c in range_candles)  # highest high
-    range_low = min(c[3] for c in range_candles)  # lowest low
+    range_high = max(c[2] for c in range_candles)
+    range_low = min(c[3] for c in range_candles)
     range_size = range_high - range_low
 
     if range_size < orb_config.ORB_MIN_RANGE_POINTS:
         return None
 
-    # Skip if range is too wide — SL will be unreachable
     if range_size > orb_config.ORB_MAX_RANGE_POINTS:
         return None
 
@@ -59,29 +41,53 @@ def get_opening_range(candles: List[List]) -> Optional[Dict[str, Any]]:
     }
 
 
+def get_trend(candles: List[List]) -> Optional[str]:
+    """
+    Determine trend using EMA crossover.
+    Uses ALL available candles (historical + intraday) for accuracy.
+    Returns BULLISH, BEARISH, SIDEWAYS, or None if not enough data.
+    """
+
+    if len(candles) < strategy.EMA_SLOW:
+        return None
+
+    closes = [c[4] for c in candles]
+
+    # Simple EMA calculation without pandas_ta dependency
+    def calc_ema(prices, period):
+        k = 2 / (period + 1)
+        ema = prices[0]
+        for price in prices[1:]:
+            ema = price * k + ema * (1 - k)
+        return ema
+
+    ema_fast = calc_ema(closes, strategy.EMA_FAST)
+    ema_slow = calc_ema(closes, strategy.EMA_SLOW)
+
+    diff = ema_fast - ema_slow
+    threshold = closes[-1] * 0.0002  # 0.02% threshold to avoid SIDEWAYS noise
+
+    if diff > threshold:
+        return "BULLISH"
+    elif diff < -threshold:
+        return "BEARISH"
+    else:
+        return "SIDEWAYS"
+
+
 def generate_orb_signal(
     candles: List[List],
     already_traded: bool = False,
+    historical_candles: List[List] = None,
 ) -> Dict[str, Any]:
     """
-    Generate ORB signal from a chronologically sorted 5m candle list.
+    Generate ORB signal.
 
     Args:
-        candles: All candles for the day so far (sorted oldest first).
-        already_traded: True if a trade has already been taken today.
-
-    Returns:
-        {
-            "signal": "BUY" | "NO_TRADE",
-            "option_type": "CE" | "PE" | None,
-            "entry": float | None,
-            "stop_loss": float | None,
-            "target": float | None,
-            "range_high": float | None,
-            "range_low": float | None,
-            "confidence": int,
-            "reason": str,
-        }
+        candles: Today's intraday 5m candles (sorted oldest first).
+        already_traded: True if trade already taken today.
+        historical_candles: Optional — recent historical candles for
+                            trend calculation (provides EMA_SLOW lookback).
     """
 
     NO_TRADE = {
@@ -101,18 +107,17 @@ def generate_orb_signal(
 
     candles = sorted(candles, key=lambda c: c[0])
 
-    # No trades after cutoff time (check AFTER sort so [-1] is truly latest)
+    # Cutoff time check
     if candles and candles[-1][0][11:16] > orb_config.ORB_SIGNAL_CUTOFF:
         return {**NO_TRADE, "reason": "Past signal cutoff time."}
 
+    # Opening range
     opening_range = get_opening_range(candles)
-
     if opening_range is None:
         return {**NO_TRADE, "reason": "Opening range not established yet."}
 
-    # Only look at candles AFTER the opening range
+    # Post-range candles only
     post_range = [c for c in candles if c[0][11:16] > orb_config.ORB_END_TIME]
-
     if not post_range:
         return {**NO_TRADE, "reason": "Waiting for post-range candles."}
 
@@ -123,38 +128,70 @@ def generate_orb_signal(
     range_low = opening_range["low"]
     range_size = opening_range["size"]
 
-    # CE breakout — close above range high
+    # Trend — use historical + intraday combined for enough EMA lookback
+    all_candles = sorted((historical_candles or []) + candles, key=lambda c: c[0])
+    trend_direction = get_trend(all_candles)
+
+    # Confidence based on trend alignment
+    def confidence(option_type):
+        if trend_direction == "BULLISH" and option_type == "CE":
+            return 90
+        if trend_direction == "BEARISH" and option_type == "PE":
+            return 90
+        if trend_direction == "SIDEWAYS" or trend_direction is None:
+            return 78  # below 80 will be blocked by MIN_CONFIDENCE
+        return 70  # counter-trend — low confidence, will be blocked
+
+    # CE breakout
     if close > range_high:
-        sl = range_low
+        if trend_direction == "BEARISH":
+            return {
+                **NO_TRADE,
+                "reason": "CE breakout but trend BEARISH — counter-trend, skipping.",
+            }
+
+        sl = round(latest[3] - 10, 2)  # 10 points buffer neeche
         risk = close - sl
-        target = round(close + risk * orb_config.ORB_RISK_REWARD, 2)
+        if risk <= 0:
+            return {**NO_TRADE, "reason": "Invalid SL — candle low above close."}
+
+        conf = confidence("CE")
         return {
             "signal": "BUY",
             "option_type": "CE",
             "entry": round(close, 2),
-            "stop_loss": round(sl, 2),
-            "target": target,
+            "stop_loss": sl,
+            "target": round(close + risk * orb_config.ORB_RISK_REWARD, 2),
             "range_high": range_high,
             "range_low": range_low,
-            "confidence": 85,
-            "reason": f"Price closed above opening range high ({range_high}). Range size: {range_size} pts.",
+            "confidence": conf,
+            "reason": f"ORB CE breakout | Trend: {trend_direction} | Range: {range_low}–{range_high} ({range_size} pts)",
         }
 
-    # PE breakout — close below range low
+    # PE breakout
     if close < range_low:
-        sl = range_high
+        if trend_direction == "BULLISH":
+            return {
+                **NO_TRADE,
+                "reason": "PE breakout but trend BULLISH — counter-trend, skipping.",
+            }
+
+        sl = round(latest[2] + 10, 2)  # 10 points buffer upar
         risk = sl - close
-        target = round(close - risk * orb_config.ORB_RISK_REWARD, 2)
+        if risk <= 0:
+            return {**NO_TRADE, "reason": "Invalid SL — candle high below close."}
+
+        conf = confidence("PE")
         return {
             "signal": "BUY",
             "option_type": "PE",
             "entry": round(close, 2),
-            "stop_loss": round(sl, 2),
-            "target": target,
+            "stop_loss": sl,
+            "target": round(close - risk * orb_config.ORB_RISK_REWARD, 2),
             "range_high": range_high,
             "range_low": range_low,
-            "confidence": 85,
-            "reason": f"Price closed below opening range low ({range_low}). Range size: {range_size} pts.",
+            "confidence": conf,
+            "reason": f"ORB PE breakout | Trend: {trend_direction} | Range: {range_low}–{range_high} ({range_size} pts)",
         }
 
     return {

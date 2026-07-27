@@ -68,4 +68,4 @@ API_PORT = int(os.getenv("API_PORT", "8000"))
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-MIN_PROFIT_RUPEES = float(os.getenv("MIN_PROFIT_RUPEES", "100"))
+MIN_PROFIT_RUPEES = float(os.getenv("MIN_PROFIT_RUPEES", "300"))
