@@ -165,6 +165,9 @@ class OptionService:
 
         index = atm_index
 
+        if moneyness == "ATM":
+            steps = 0
+
         # ---------- ITM / OTM Selection ----------
 
         if moneyness != "ATM":
@@ -289,7 +292,7 @@ class OptionService:
             reasons.append(f"Volume too low ({volume}) < {min_volume}.")
 
         if bid is not None and ask is not None and bid > 0 and ask > 0:
-            spread_percent = ((ask - bid) / ltp) * 100
+            spread_percent = abs((ask - bid) / ltp) * 100
 
             if spread_percent > max_spread_percent:
                 reasons.append(

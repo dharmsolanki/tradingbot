@@ -1,8 +1,14 @@
 from app import strategy
 from app.core.exceptions import RiskValidationError
+from typing import Any
+import math
 
 
-def calculate_position_size(capital, risk_per_unit, lot_size):
+def calculate_position_size(
+    capital: float,
+    risk_per_unit: float,
+    lot_size: int,
+) -> int:
     """
     Determine how many lots to trade based on capital and risk per trade.
 
@@ -38,10 +44,13 @@ def calculate_position_size(capital, risk_per_unit, lot_size):
     if risk_per_lot > max_risk_rupees:
         return 0
 
-    return int(max_risk_rupees // risk_per_lot)
+    return max(0, math.floor(max_risk_rupees / risk_per_lot))
 
 
-def check_daily_loss_limit(realized_pnl_today, capital):
+def check_daily_loss_limit(
+    realized_pnl_today: float,
+    capital: float,
+) -> dict[str, float | bool]:
     """
     Check whether the daily loss limit has been breached.
 
@@ -61,7 +70,9 @@ def check_daily_loss_limit(realized_pnl_today, capital):
     if capital <= 0:
         raise RiskValidationError("capital must be positive.")
 
-    loss_percent = (-realized_pnl_today / capital) * 100 if realized_pnl_today < 0 else 0.0
+    loss_percent = (
+        (-realized_pnl_today / capital) * 100 if realized_pnl_today < 0 else 0.0
+    )
 
     return {
         "breached": loss_percent >= strategy.MAX_DAILY_LOSS_PERCENT,
@@ -69,7 +80,9 @@ def check_daily_loss_limit(realized_pnl_today, capital):
     }
 
 
-def check_trade_count_limit(trades_today_count):
+def check_trade_count_limit(
+    trades_today_count: int,
+) -> bool:
     """
     Check whether the maximum number of trades for the day is reached.
     """
@@ -77,7 +90,13 @@ def check_trade_count_limit(trades_today_count):
     return trades_today_count >= strategy.MAX_TRADES_PER_DAY
 
 
-def update_trailing_stop(option_type, entry, current_stop_loss, current_premium, risk):
+def update_trailing_stop(
+    option_type: str,
+    entry: float,
+    current_stop_loss: float,
+    current_premium: float,
+    risk: float,
+) -> float:
     """
     Move stop loss to breakeven once the trade has moved favourably by
     TRAILING_TRIGGER_RR × risk. Never moves stop loss backward.
@@ -112,7 +131,10 @@ def update_trailing_stop(option_type, entry, current_stop_loss, current_premium,
     return current_stop_loss
 
 
-def calculate_trade_levels(signal, option):
+def calculate_trade_levels(
+    signal: dict[str, Any],
+    option: dict[str, Any],
+) -> dict[str, Any]:
     """
     Create a complete trade plan using option premium.
 
@@ -146,12 +168,17 @@ def calculate_trade_levels(signal, option):
 
     entry = premium
 
-    if option["option_type"] == "CE":
+    option_type = option.get("option_type")
+
+    if option_type not in ("CE", "PE"):
+        raise RiskValidationError(f"Unsupported option type: {option_type}")
+
+    if option_type == "CE":
 
         stop_loss = entry - risk
         target = entry + reward
 
-    else:
+    elif option_type == "PE":
 
         # Premium increases when PE moves in our favour.
         # Same calculation because we are buying the option.
@@ -161,9 +188,9 @@ def calculate_trade_levels(signal, option):
 
     return {
         "trade": True,
-        "symbol": f"{option['strike']} {option['option_type']}",
+        "symbol": f"{option['strike']} {option_type}",
         "instrument_key": option["instrument_key"],
-        "option_type": option["option_type"],
+        "option_type": option_type,
         "expiry": option["expiry"],
         "strike": option["strike"],
         "entry": round(entry, 2),
@@ -173,13 +200,16 @@ def calculate_trade_levels(signal, option):
         "reward": round(reward, 2),
         "risk_reward": strategy.RISK_REWARD_RATIO,
         "quantity": strategy.DEFAULT_QUANTITY,
-        "confidence": signal["confidence"],
-        "score": signal["score"],
-        "reason": signal["reasons"],
+        "confidence": signal.get("confidence", 0),
+        "score": signal.get("score", 0),
+        "reason": signal.get("reasons", []),
     }
 
 
-def calculate_target_2(entry, risk):
+def calculate_target_2(
+    entry: float,
+    risk: float,
+) -> float:
     """
     Calculate a second, further target for published recommendations.
 
@@ -210,7 +240,9 @@ def calculate_target_2(entry, risk):
     return round(entry + reward_2, 2)
 
 
-def calculate_entry_range(entry):
+def calculate_entry_range(
+    entry: float,
+) -> tuple[float, float]:
     """
     Return a published entry band around the actual entry premium,
     e.g. entry=146.5 -> (143.6, 149.4), reflecting realistic fill

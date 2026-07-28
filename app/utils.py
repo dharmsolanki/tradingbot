@@ -60,13 +60,12 @@ def require_fields(data: Dict[str, Any], fields: Iterable[str], context: str) ->
     Raises:
         MarketDataError: If any required field is missing or None.
     """
-
+    if not isinstance(data, dict):
+        raise MarketDataError(f"{context} must be a dictionary.")
     missing = [field for field in fields if data.get(field) is None]
 
     if missing:
-        raise MarketDataError(
-            f"Missing required field(s) {missing} in {context}."
-        )
+        raise MarketDataError(f"Missing required field(s) {missing} in {context}.")
 
 
 def safe_round(value: Any, digits: int = 2) -> float | None:
@@ -86,6 +85,9 @@ def safe_round(value: Any, digits: int = 2) -> float | None:
 
     if value is None:
         return None
+
+    if digits < 0:
+        raise ValueError("digits cannot be negative.")
 
     try:
         return round(float(value), digits)

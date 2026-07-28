@@ -17,7 +17,8 @@ Output:
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+
+from app.constants import TRADE_OPEN
 
 from app.auth import UpstoxAuth
 from app.market_data import MarketData
@@ -72,7 +73,7 @@ def simulate_trade(
                 return "LOSS"
             if low <= target:
                 return "WIN"
-    return "OPEN"
+    return TRADE_OPEN
 
 
 # ==========================
@@ -80,7 +81,7 @@ def simulate_trade(
 # ==========================
 
 
-def run():
+def run() -> None:
     print("=" * 60)
     print("BACKTEST — Last", LOOKBACK_DAYS, "days")
     print("Instrument:", INSTRUMENT_KEY)
@@ -160,7 +161,8 @@ def run():
                 ind_5m = calculate_indicators(candles_5m_slice)
                 ind_15m = calculate_indicators(candles_15m_slice)
                 signal = generate_signal_v2(ind_5m, ind_15m)
-            except Exception:
+            except Exception as exc:
+                print(f"Signal generation failed: {exc}")
                 continue
 
             # Debug: print every non-zero score so we can see how close

@@ -40,18 +40,23 @@ class MarketData:
         params: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
-        Send a GET request to the Upstox API.
+            Send a GET request to the Upstox API.
 
-        Args:
-            endpoint: API endpoint (e.g. /v3/market-quote/ltp)
-            token: Upstox access token
-            params: Query parameters
+                Args:
+                    endpoint: API endpoint (e.g. /v3/market-quote/ltp)
+                    token: Upstox access token
+                    params: Query parameters
 
-        Returns:
-            Parsed JSON response.
+                Returns:
+                    Parsed JSON response.
 
         Raises:
-            ValueError: If the API request fails.
+            AuthenticationError:
+                If the access token is invalid or expired.
+
+            MarketDataError:
+                If the request fails, rate limit is exceeded,
+                the response is invalid, or JSON parsing fails.
         """
 
         url = f"{self.BASE_URL}{endpoint}"
@@ -75,6 +80,9 @@ class MarketData:
         if response.status_code == 401:
             raise AuthenticationError(f"GET {response.url} | Invalid or expired token.")
 
+        if response.status_code == 429:
+            raise MarketDataError(f"GET {response.url} | API rate limit exceeded.")
+
         if response.status_code != 200:
             raise MarketDataError(
                 f"GET {response.url} | "
@@ -82,7 +90,12 @@ class MarketData:
                 f"Response: {response.text}"
             )
 
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise MarketDataError(
+                f"GET {response.url} | Invalid JSON response."
+            ) from exc
 
     def get_ltp(
         self,
@@ -127,7 +140,9 @@ class MarketData:
             token=token,
         )
 
-        return data.get("data", {}).get("candles", [])
+        candles = data.get("data", {}).get("candles", [])
+
+        return candles
 
     def get_option_chain(
         self,
@@ -189,12 +204,12 @@ class MarketData:
 
     def get_historical_candles(
         self,
-        token,
-        instrument_key,
-        unit="minutes",
-        interval=5,
-        days=5,
-    ):
+        token: str,
+        instrument_key: str,
+        unit: str = "minutes",
+        interval: int = 5,
+        days: int = 5,
+    ) -> List[List[Any]]:
         """
         Get historical candles.
 
@@ -219,15 +234,18 @@ class MarketData:
             token=token,
         )
 
-        return data.get("data", {}).get("candles", [])
+        candles = data.get("data", {}).get("candles", [])
+
+        return candles
 
     def get_latest_candles(
         self,
-        token,
-        instrument_key,
-        unit="minutes",
-        interval=5,
-    ):
+        token: str,
+        instrument_key: str,
+        unit: str = "minutes",
+        interval: int = 5,
+        days: int = 5,
+    ) -> List[List[Any]]:
         """
         Returns latest candles.
 
@@ -253,6 +271,7 @@ class MarketData:
             instrument_key,
             unit,
             interval,
+            days,
         )
 
     def get_continuous_candles(
@@ -294,6 +313,8 @@ class MarketData:
         for candle in historical:
             by_timestamp[candle[0]] = candle
 
+        # Intraday candles overwrite historical candles having the same timestamp,
+        # because intraday data is always the most recent.
         for candle in intraday:
             by_timestamp[candle[0]] = candle
 
@@ -303,7 +324,7 @@ class MarketData:
         self,
         token: str,
         instrument_key: str,
-    ) -> dict:
+    ) -> Dict[str, List[List[Any]]]:
         """
         Fetch both 5-minute and 15-minute candles.
 

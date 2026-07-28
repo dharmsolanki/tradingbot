@@ -11,6 +11,13 @@ Signal Engine in values ko use karega.
 # "EMA"  — original Multi-Timeframe EMA+MACD+RSI strategy
 # "ORB"  — Opening Range Breakout strategy
 SIGNAL_MODE = "ORB"
+VALID_SIGNAL_MODES = {
+    "EMA",
+    "ORB",
+}
+
+if SIGNAL_MODE not in VALID_SIGNAL_MODES:
+    raise ValueError(f"Invalid SIGNAL_MODE: {SIGNAL_MODE}")
 
 # ==========================
 # EMA
@@ -82,6 +89,14 @@ MIN_CONFIDENCE = 75
 # ==========================
 
 OPTION_MODE = "ATM"  # ATM / ITM / OTM
+VALID_OPTION_MODES = {
+    "ATM",
+    "ITM",
+    "OTM",
+}
+
+if OPTION_MODE not in VALID_OPTION_MODES:
+    raise ValueError(f"Invalid OPTION_MODE: {OPTION_MODE}")
 
 STRIKE_STEP = 50  # NIFTY
 # STRIKE_STEP = 100  # BANKNIFTY
@@ -121,3 +136,14 @@ ENTRY_RANGE_PERCENT = 2.0
 # logic actually used (multi-timeframe trend + entry confirmation).
 STRATEGY_NAME = "Multi-Timeframe EMA + MACD + RSI Confirmation"
 MIN_DAILY_PROFIT_RUPEES = 1000.0
+if MIN_DAILY_PROFIT_RUPEES < 0:
+    raise ValueError("MIN_DAILY_PROFIT_RUPEES cannot be negative.")
+
+if STOP_LOSS_PERCENT <= 0:
+    raise ValueError("STOP_LOSS_PERCENT must be greater than zero.")
+
+if RISK_REWARD_RATIO <= 0:
+    raise ValueError("RISK_REWARD_RATIO must be greater than zero.")
+
+if DEFAULT_QUANTITY <= 0:
+    raise ValueError("DEFAULT_QUANTITY must be greater than zero.")

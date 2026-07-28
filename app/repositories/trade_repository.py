@@ -12,12 +12,13 @@ replaces the ad-hoc table paper_trader.py used to create on its own.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 
 from app.core.exceptions import TradeAlreadyOpenError, TradeNotFoundError
 from app.core.schema import CREATE_INDEXES, CREATE_PAPER_TRADES_TABLE
 from app.db import DatabaseManager
+from app.constants import TRADE_OPEN
 
 
 class TradeRepository:
@@ -74,7 +75,15 @@ class TradeRepository:
 
         trade_id = str(uuid.uuid4())
 
-        entry_reason = "; ".join(trade_plan.get("reason", []))
+        if quantity <= 0:
+            raise ValueError("quantity must be positive.")
+
+        reason = trade_plan.get("reason", [])
+
+        if isinstance(reason, list):
+            entry_reason = "; ".join(reason)
+        else:
+            entry_reason = str(reason)
 
         self.db.execute(
             """
@@ -98,11 +107,11 @@ class TradeRepository:
                 option["ltp"],
                 trade_plan["stop_loss"],
                 trade_plan["target"],
-                "OPEN",
+                TRADE_OPEN,
                 trade_plan.get("confidence", 0),
                 trade_plan.get("score", 0),
                 entry_reason,
-                datetime.now().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
 
@@ -111,14 +120,12 @@ class TradeRepository:
     def get_open_trade(self) -> Optional[Dict[str, Any]]:
         """Return the most recent OPEN trade, or None if there is none."""
 
-        return self.db.fetchone(
-            """
+        return self.db.fetchone("""
             SELECT * FROM paper_trades
             WHERE status = 'OPEN'
             ORDER BY id DESC
             LIMIT 1
-            """
-        )
+            """)
 
     def get_trade_by_id(self, trade_id: str) -> Optional[Dict[str, Any]]:
         """Return a trade by its trade_id, or None if not found."""
@@ -153,9 +160,12 @@ class TradeRepository:
             TradeNotFoundError: If trade_id does not exist or is not OPEN.
         """
 
+        if brokerage < 0 or charges < 0:
+            raise ValueError("brokerage and charges cannot be negative.")
+
         trade = self.get_trade_by_id(trade_id)
 
-        if trade is None or trade["status"] != "OPEN":
+        if trade is None or trade["status"] != TRADE_OPEN:
             raise TradeNotFoundError(f"No OPEN trade found for trade_id={trade_id}.")
 
         entry = trade["entry_price"]
@@ -177,7 +187,7 @@ class TradeRepository:
             """,
             (
                 exit_price,
-                datetime.now().isoformat(),
+                datetime.now(UTC).isoformat(),
                 exit_reason,
                 round(gross_pnl, 2),
                 round(brokerage, 2),

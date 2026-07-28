@@ -44,6 +44,12 @@ class PaperTrader:
             The generated trade_id.
         """
 
+        if quantity <= 0:
+            raise ValueError("quantity must be positive.")
+
+        if self.repository.get_open_trade() is not None:
+            raise ValueError("An open trade already exists.")
+
         return self.repository.create_trade(option, trade_plan, quantity)
 
     def get_open_trade(self) -> Optional[Dict[str, Any]]:
@@ -69,4 +75,11 @@ class PaperTrader:
             net_pnl for the closed trade.
         """
 
-        return self.repository.close_trade(trade_id, exit_price, exit_reason=reason)
+        if exit_price <= 0:
+            raise ValueError("exit_price must be positive.")
+
+        return self.repository.close_trade(
+            trade_id,
+            exit_price,
+            exit_reason=reason,
+        )

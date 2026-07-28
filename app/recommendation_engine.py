@@ -28,17 +28,19 @@ from app.decision_engine import DecisionEngine
 from app.market_data import MarketData
 from app.notifier import Notification, NotificationService, format_recommendation
 from app.utils import get_logger
+from app.constants import TRADE_CLOSED
+from app.constants import TARGET_HIT
 
 logger = get_logger(__name__)
 
 # Recommendation lifecycle statuses
-STATUS_WAITING = "WAITING"       # Generated but entry not yet reached
-STATUS_ACTIVE = "ACTIVE"         # Entry filled (live MTM tracking)
+STATUS_WAITING = "WAITING"  # Generated but entry not yet reached
+STATUS_ACTIVE = "ACTIVE"  # Entry filled (live MTM tracking)
 STATUS_TARGET_1_HIT = "TARGET_1_HIT"
-STATUS_TARGET_HIT = "TARGET_HIT"
+STATUS_TARGET_HIT = TARGET_HIT
 STATUS_SL_HIT = "SL_HIT"
-STATUS_CLOSED = "CLOSED"
-STATUS_EXPIRED = "EXPIRED"       # Market closed without trigger
+STATUS_CLOSED = TRADE_CLOSED
+STATUS_EXPIRED = "EXPIRED"  # Market closed without trigger
 
 
 class RecommendationEngine:
@@ -114,6 +116,18 @@ class RecommendationEngine:
         if result["decision"] != "TRADE":
             return None
 
+        # Prevent duplicate active recommendation for same instrument
+        for rec in self._recommendations.values():
+            if rec["instrument_key"] == instrument_key and rec["status"] in (
+                STATUS_WAITING,
+                STATUS_ACTIVE,
+            ):
+                logger.debug(
+                    "Recommendation already active for %s. Skipping duplicate.",
+                    instrument_key,
+                )
+                return rec
+
         rec = self._build_recommendation(result, instrument_key)
 
         self._recommendations[rec["rec_id"]] = rec
@@ -164,7 +178,10 @@ class RecommendationEngine:
         rec["current_premium"] = ltp
         rec["live_pnl"] = round((ltp - rec["entry_mid"]) * rec.get("lot_size", 1), 2)
 
-        if rec["status"] == STATUS_WAITING and ltp >= rec["entry_range"]["low"]:
+        if (
+            rec["status"] == STATUS_WAITING
+            and rec["entry_range"]["low"] <= ltp <= rec["entry_range"]["high"]
+        ):
             rec["status"] = STATUS_ACTIVE
             rec["activated_at"] = datetime.now().isoformat()
 
@@ -191,13 +208,40 @@ class RecommendationEngine:
                 rec["status"] = STATUS_EXPIRED
                 rec["closed_at"] = datetime.now().isoformat()
 
+    def cleanup_old(self, keep_days: int = 7) -> None:
+        """
+        Remove old recommendations from memory.
+        Keeps only recent recommendations.
+        """
+
+        cutoff = datetime.now().timestamp() - (keep_days * 86400)
+
+        remove = []
+
+        for rec_id, rec in self._recommendations.items():
+            try:
+                ts = datetime.fromisoformat(rec["generated_at"]).timestamp()
+            except Exception:
+                remove.append(rec_id)
+                continue
+
+            if ts < cutoff:
+                remove.append(rec_id)
+
+        for rec_id in remove:
+            self._recommendations.pop(rec_id, None)
+
+        if remove:
+            logger.info("Removed %d old recommendations", len(remove))
+
     def today_recommendations(self) -> List[Dict[str, Any]]:
         """Return all recommendations generated today, newest first."""
 
         today = datetime.now().strftime("%Y-%m-%d")
 
         return [
-            r for r in sorted(
+            r
+            for r in sorted(
                 self._recommendations.values(),
                 key=lambda x: x["generated_at"],
                 reverse=True,
@@ -266,7 +310,12 @@ class RecommendationEngine:
             "confidence": signal["confidence"],
             "strategy_name": strategy.STRATEGY_NAME,
             "market_trend": signal.get("trend", "—"),
-            "reasons": decision_result.get("reasons", []) + signal.get("entry", {}).get("reasons", []),
+            "reasons": list(
+                dict.fromkeys(
+                    decision_result.get("reasons", [])
+                    + signal.get("entry", {}).get("reasons", [])
+                )
+            ),
             "indicators": {
                 "ema_fast": indicators.get("ema_fast"),
                 "ema_slow": indicators.get("ema_slow"),

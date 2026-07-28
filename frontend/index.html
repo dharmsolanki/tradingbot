@@ -657,6 +657,9 @@
     async function loadTrades() {
       try {
         const res = await fetch(`${API_BASE}/api/trades`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         const body = document.getElementById('tradesBody');
 
@@ -720,6 +723,9 @@
     async function loadRecommendations() {
       try {
         const res = await fetch(`${API_BASE}/api/recommendations`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         const area = document.getElementById('recsArea');
 
@@ -770,6 +776,9 @@
       if (!confirm('Are you sure you want to manually exit this trade?')) return;
       try {
         const res = await fetch(`${API_BASE}/api/trade/exit`, { method: 'POST' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         if (data.success) {
           alert(`Trade closed! Exit: ₹${data.exit_price} | P/L: ₹${data.net_pnl}`);
@@ -788,6 +797,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ instrument: name }),
         });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         if (!data.success) {
           alert(data.message);
@@ -800,6 +812,9 @@
     async function loadInstrument() {
       try {
         const res = await fetch(`${API_BASE}/api/instrument`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         document.getElementById('instrumentSelect').value = data.instrument;
       } catch (e) {

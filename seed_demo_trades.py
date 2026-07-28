@@ -20,12 +20,16 @@ Then refresh the dashboard.
 from app.config import PAPER_TRADES_DB_PATH
 from app.db import DatabaseManager
 from app.repositories.trade_repository import TradeRepository
+from app.constants import TARGET_HIT
+from app.constants import STOP_LOSS_HIT
 
 db = DatabaseManager(db_path=PAPER_TRADES_DB_PATH)
 repo = TradeRepository(db=db)
 
 
-def seed_trade(option_type, entry, stop_loss, target, exit_price, exit_reason, strike=25000):
+def seed_trade(
+    option_type, entry, stop_loss, target, exit_price, exit_reason, strike=25000
+):
     option = {
         "strike": strike,
         "option_type": option_type,
@@ -44,12 +48,37 @@ def seed_trade(option_type, entry, stop_loss, target, exit_price, exit_reason, s
     }
     trade_id = repo.create_trade(option, plan, quantity=65)
     net_pnl = repo.close_trade(trade_id, exit_price=exit_price, exit_reason=exit_reason)
-    print(f"Seeded {option_type} trade: entry={entry} exit={exit_price} net_pnl={net_pnl}")
+    print(
+        f"Seeded {option_type} trade: entry={entry} exit={exit_price} net_pnl={net_pnl}"
+    )
 
 
 if __name__ == "__main__":
-    seed_trade("CE", entry=120, stop_loss=100, target=160, exit_price=155, exit_reason="TARGET_HIT")
-    seed_trade("PE", entry=90, stop_loss=75, target=120, exit_price=75, exit_reason="STOP_LOSS_HIT")
-    seed_trade("CE", entry=200, stop_loss=170, target=260, exit_price=245, exit_reason="TARGET_HIT")
+    seed_trade(
+        "CE",
+        entry=120,
+        stop_loss=100,
+        target=160,
+        exit_price=155,
+        exit_reason=TARGET_HIT,
+    )
+    seed_trade(
+        "PE",
+        entry=90,
+        stop_loss=75,
+        target=120,
+        exit_price=75,
+        exit_reason=STOP_LOSS_HIT,
+    )
+    seed_trade(
+        "CE",
+        entry=200,
+        stop_loss=170,
+        target=260,
+        exit_price=245,
+        exit_reason=TARGET_HIT,
+    )
 
-    print("\nDone. Refresh the dashboard to see Trade Book, Analytics, and Capital update.")
+    print(
+        "\nDone. Refresh the dashboard to see Trade Book, Analytics, and Capital update."
+    )

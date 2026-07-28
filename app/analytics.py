@@ -8,6 +8,7 @@ Read-only — never modifies trade data.
 from __future__ import annotations
 
 from typing import Any, Dict, List
+from app.constants import TRADE_CLOSED
 
 from app.repositories.trade_repository import TradeRepository
 
@@ -23,7 +24,7 @@ class Analytics:
         Return aggregate performance statistics across all closed trades.
         """
 
-        closed = self.repository.list_trades(status="CLOSED")
+        closed = self.repository.list_trades(status=TRADE_CLOSED)
 
         if not closed:
             return {
@@ -48,7 +49,7 @@ class Analytics:
 
         rr_values = []
         for t in closed:
-            risk = (t["entry_price"] - t["stop_loss"])
+            risk = t["entry_price"] - t["stop_loss"]
             if risk and risk > 0:
                 actual_move = (t["exit_price"] or t["entry_price"]) - t["entry_price"]
                 rr_values.append(actual_move / risk)

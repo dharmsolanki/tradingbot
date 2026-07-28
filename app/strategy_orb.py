@@ -13,10 +13,19 @@ ORB_MIN_RANGE_POINTS = 50  # NIFTY points
 ORB_MAX_RANGE_POINTS = 600  # range too big = skip
 
 # Risk/Reward
-ORB_RISK_REWARD = 1.5  # Target = SL distance x 2
+ORB_RISK_REWARD = 1.5  # Target = SL distance x 1.5
 
 # Breakout confirmation — price must close ABOVE/BELOW range, not just touch
 ORB_CONFIRMATION = "CLOSE"  # "CLOSE" or "HIGH_LOW"
+VALID_CONFIRMATION_MODES = frozenset(
+    {
+        "CLOSE",
+        "HIGH_LOW",
+    }
+)
+
+if ORB_CONFIRMATION not in VALID_CONFIRMATION_MODES:
+    raise ValueError(f"Invalid ORB_CONFIRMATION: {ORB_CONFIRMATION}")
 
 # Minimum ATR (5m) to confirm volatility is present
 ORB_MIN_ATR = 30
@@ -24,3 +33,19 @@ ORB_MIN_ATR = 30
 # Max trades per day via ORB
 ORB_MAX_TRADES = 2
 ORB_SIGNAL_CUTOFF = "13:00"  # No new trades after this time
+
+# ==========================
+# Configuration Validation
+# ==========================
+
+if ORB_MIN_RANGE_POINTS <= 0:
+    raise ValueError("ORB_MIN_RANGE_POINTS must be greater than zero.")
+
+if ORB_MAX_RANGE_POINTS <= ORB_MIN_RANGE_POINTS:
+    raise ValueError("ORB_MAX_RANGE_POINTS must be greater than ORB_MIN_RANGE_POINTS.")
+
+if ORB_RISK_REWARD <= 0:
+    raise ValueError("ORB_RISK_REWARD must be greater than zero.")
+
+if ORB_MAX_TRADES <= 0:
+    raise ValueError("ORB_MAX_TRADES must be greater than zero.")

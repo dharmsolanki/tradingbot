@@ -100,6 +100,14 @@ class DecisionEngine:
                 ],
             }
 
+        if not candles_5m or not candles_15m:
+            return {
+                "decision": "NO_TRADE",
+                "signal": None,
+                "trade_plan": None,
+                "reasons": ["Insufficient candle data."],
+            }
+
         # ---------- Signal ----------
 
         if strategy.SIGNAL_MODE == "ORB":
@@ -148,6 +156,14 @@ class DecisionEngine:
             token, instrument_key
         )
 
+        if not chain:
+            return {
+                "decision": "NO_TRADE",
+                "signal": signal,
+                "trade_plan": None,
+                "reasons": ["Option chain unavailable."],
+            }
+
         option = self.option_service.get_option(
             chain,
             option_type=signal["option_type"],
@@ -191,6 +207,14 @@ class DecisionEngine:
         # ---------- Position Sizing ----------
 
         risk_per_unit = trade_plan["risk"]
+
+        if risk_per_unit <= 0:
+            return {
+                "decision": "NO_TRADE",
+                "signal": signal,
+                "trade_plan": None,
+                "reasons": ["Invalid trade risk calculated."],
+            }
 
         lots = calculate_position_size(
             capital=capital,

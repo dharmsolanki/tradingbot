@@ -7,6 +7,9 @@ from app.indicators import (
 )
 
 from app import strategy
+from app.utils import get_logger
+
+logger = get_logger(__name__)
 
 import math
 
@@ -37,6 +40,21 @@ def calculate_indicators(candles):
 
     if not candles:
         raise ValueError("Candles list cannot be empty.")
+
+    minimum_required = (
+        max(
+            strategy.EMA_SLOW,
+            strategy.ATR_PERIOD,
+            strategy.SUPERTREND_LENGTH,
+            strategy.MACD_SLOW,
+        )
+        + 5
+    )
+
+    if len(candles) < minimum_required:
+        raise ValueError(
+            f"At least {minimum_required} candles required, got {len(candles)}."
+        )
 
     # Upstox returns candles latest-first; indicators need chronological
     # (oldest-first) order. Sort defensively by timestamp so calculations
@@ -200,6 +218,13 @@ def get_entry(indicators):
     # RSI Filter
     rsi = rsi_values[-1]
 
+    if not (0 <= rsi <= 100):
+        return {
+            "entry": "WAIT",
+            "score": 0,
+            "reasons": ["Invalid RSI value"],
+        }
+
     if 55 <= rsi <= 70:
         score += 30
         reasons.append(f"RSI Strong Bullish ({rsi:.2f})")
@@ -258,7 +283,10 @@ def generate_signal(indicators):
         direction,
     ]
 
-    if any(v is None or math.isnan(v) for v in values):
+    def _invalid(v):
+        return v is None or (isinstance(v, float) and math.isnan(v))
+
+    if any(_invalid(v) for v in values):
         return {
             "signal": "NO_TRADE",
             "option_type": None,
@@ -388,8 +416,22 @@ def generate_signal_v2(indicators_5m, indicators_15m):
         entry,
     )
 
+    if confidence < strategy.MIN_CONFIDENCE:
+        return {
+            "signal": "NO_TRADE",
+            "confidence": confidence,
+            "trend": trend,
+            "entry": entry,
+        }
+
     # Trend mismatch
     if trend["trend"] == "BULLISH" and entry["entry"] != "BUY":
+        logger.debug(
+            "Signal rejected | trend=%s entry=%s confidence=%s",
+            trend["trend"],
+            entry["entry"],
+            confidence,
+        )
         return {
             "signal": "NO_TRADE",
             "confidence": confidence,
@@ -398,6 +440,12 @@ def generate_signal_v2(indicators_5m, indicators_15m):
         }
 
     if trend["trend"] == "BEARISH" and entry["entry"] != "SELL":
+        logger.debug(
+            "Signal rejected | trend=%s entry=%s confidence=%s",
+            trend["trend"],
+            entry["entry"],
+            confidence,
+        )
         return {
             "signal": "NO_TRADE",
             "confidence": confidence,

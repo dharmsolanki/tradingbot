@@ -10,6 +10,13 @@ class Signal:
     confidence: int
     reasons: list[str] = field(default_factory=list)
 
+    def __post_init__(self):
+        if not (0 <= self.confidence <= 100):
+            raise ValueError("confidence must be between 0 and 100.")
+
+        if self.score < 0:
+            raise ValueError("score cannot be negative.")
+
 
 @dataclass(slots=True)
 class SelectedOption:
@@ -59,3 +66,25 @@ class TradePlan:
     score: int
 
     reason: list[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.entry <= 0:
+            raise ValueError("entry must be greater than zero.")
+
+        if self.stop_loss <= 0:
+            raise ValueError("stop_loss must be greater than zero.")
+
+        if self.target <= 0:
+            raise ValueError("target must be greater than zero.")
+
+        if self.quantity <= 0:
+            raise ValueError("quantity must be greater than zero.")
+
+        if self.risk_reward <= 0:
+            raise ValueError("risk_reward must be greater than zero.")
+
+        if not (0 <= self.confidence <= 100):
+            raise ValueError("confidence must be between 0 and 100.")
+
+        if self.score < 0:
+            raise ValueError("score cannot be negative.")

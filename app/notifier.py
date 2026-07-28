@@ -38,20 +38,18 @@ logger = get_logger(__name__)
 # ==========================
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Notification:
     """
     Immutable payload representing one notification event.
     All fields are plain Python types so any handler can serialise them.
     """
 
-    event: str                        # e.g. "RECOMMENDATION_GENERATED"
-    title: str                        # Short headline
-    body: str                         # Full human-readable message
+    event: str  # e.g. "RECOMMENDATION_GENERATED"
+    title: str  # Short headline
+    body: str  # Full human-readable message
     metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
 # ==========================
@@ -111,12 +109,13 @@ class NotificationService:
         self._handlers: List[NotificationHandler] = [InternalLogHandler()]
 
     def register_handler(self, handler: NotificationHandler) -> None:
-        """
-        Register a new notification channel.
+        if any(isinstance(h, type(handler)) for h in self._handlers):
+            logger.warning(
+                "%s already registered.",
+                type(handler).__name__,
+            )
+            return
 
-        Args:
-            handler: Any NotificationHandler implementation.
-        """
         self._handlers.append(handler)
 
     def notify(self, notification: Notification) -> None:
@@ -157,8 +156,9 @@ def format_recommendation(rec: Dict[str, Any]) -> str:
 
     entry_range = rec.get("entry_range", "—")
     if isinstance(entry_range, dict):
-        entry_range = f"₹{entry_range['low']}–{entry_range['high']}"
-
+        entry_range = (
+            f"₹{entry_range.get('low', '—')}–" f"{entry_range.get('high', '—')}"
+        )
     return (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 {rec.get('strategy_name', 'Signal')}\n"

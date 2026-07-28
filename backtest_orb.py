@@ -13,20 +13,25 @@ from collections import defaultdict
 from app.auth import UpstoxAuth
 from app.market_data import MarketData
 from app.signal_engine_orb import generate_orb_signal
+from app.constants import TRADE_OPEN
 
 INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
 LOOKBACK_DAYS = 30
-SL_BUFFER = 5  # extra NIFTY points buffer on SL
 
 
-def group_by_day(candles):
+def group_by_day(candles: list) -> dict:
     days = defaultdict(list)
     for c in candles:
         days[c[0][:10]].append(c)
     return dict(sorted(days.items()))
 
 
-def simulate(candles_after, option_type, sl, target):
+def simulate(
+    candles_after: list,
+    option_type: str,
+    sl: float,
+    target: float,
+) -> str:
     for c in candles_after:
         if option_type == "CE":
             if c[3] <= sl:
@@ -38,10 +43,10 @@ def simulate(candles_after, option_type, sl, target):
                 return "LOSS"
             if c[3] <= target:
                 return "WIN"
-    return "OPEN"
+    return TRADE_OPEN
 
 
-def run():
+def run() -> None:
     print("=" * 60)
     print("ORB BACKTEST — Last", LOOKBACK_DAYS, "days")
     print("Instrument:", INSTRUMENT_KEY)
@@ -74,15 +79,19 @@ def run():
     for date, day_candles in days.items():
         signal_taken = False
 
+        hist = [c for c in candles_all if c[0][:10] < date]
         for i in range(1, len(day_candles)):
             candles_so_far = day_candles[: i + 1]
             # Historical candles for trend lookback (all candles before today)
-            hist = [c for c in candles_all if c[0][:10] < date]
-            signal = generate_orb_signal(
-                candles=candles_so_far,
-                already_traded=signal_taken,
-                historical_candles=hist,
-            )
+            try:
+                signal = generate_orb_signal(
+                    candles=candles_so_far,
+                    already_traded=signal_taken,
+                    historical_candles=hist,
+                )
+            except Exception as exc:
+                print(f"Signal generation failed: {exc}")
+                continue
 
             if signal["signal"] != "BUY":
                 continue

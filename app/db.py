@@ -55,7 +55,7 @@ class DatabaseManager:
         self,
         query: str,
         params: list[tuple],
-    ):
+    ) -> sqlite3.Cursor:
 
         with self._lock:
             cursor = self.connection.cursor()
@@ -102,8 +102,7 @@ class DatabaseManager:
 
             return [dict(row) for row in rows]
 
-    def close(self):
-
-        if self.connection:
-
-            self.connection.close()
+    def close(self) -> None:
+        with self._lock:
+            if self.connection:
+                self.connection.close()

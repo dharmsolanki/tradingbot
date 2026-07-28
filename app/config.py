@@ -33,6 +33,9 @@ PAPER_TRADES_DB_PATH = os.getenv(
 UPSTOX_BASE_URL = os.getenv("UPSTOX_BASE_URL", "https://api.upstox.com")
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "10"))
 
+if REQUEST_TIMEOUT_SECONDS <= 0:
+    raise ValueError("REQUEST_TIMEOUT_SECONDS must be greater than zero.")
+
 # ==========================
 # Instruments
 # ==========================
@@ -48,6 +51,9 @@ INSTRUMENTS = {
 
 DEFAULT_INSTRUMENT = os.getenv("DEFAULT_INSTRUMENT", "NIFTY")
 
+if DEFAULT_INSTRUMENT not in INSTRUMENTS:
+    raise ValueError(f"Unknown DEFAULT_INSTRUMENT: {DEFAULT_INSTRUMENT}")
+
 # ==========================
 # Live Loop
 # ==========================
@@ -61,11 +67,29 @@ PRICE_TICK_INTERVAL_SECONDS = int(os.getenv("PRICE_TICK_INTERVAL_SECONDS", "1"))
 
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
+if not (1 <= API_PORT <= 65535):
+    raise ValueError("API_PORT must be between 1 and 65535.")
 
 # ==========================
 # Logging
 # ==========================
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+VALID_LOG_LEVELS = {
+    "DEBUG",
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+}
+
+if LOG_LEVEL not in VALID_LOG_LEVELS:
+    raise ValueError(
+        f"Invalid LOG_LEVEL: {LOG_LEVEL}. "
+        f"Must be one of: {', '.join(sorted(VALID_LOG_LEVELS))}"
+    )
 
 MIN_PROFIT_RUPEES = float(os.getenv("MIN_PROFIT_RUPEES", "300"))
+if MIN_PROFIT_RUPEES < 0:
+    raise ValueError("MIN_PROFIT_RUPEES cannot be negative.")

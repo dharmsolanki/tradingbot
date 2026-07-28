@@ -1,8 +1,14 @@
 """
 signal_engine_orb.py
 
-Opening Range Breakout signal engine with trend filter,
-volume confirmation, and 2-candle breakout confirmation.
+Opening Range Breakout (ORB) signal engine.
+
+Features:
+- Opening Range detection
+- EMA trend filter
+- Counter-trend filtering
+- Configurable Risk:Reward target
+- Confidence scoring
 """
 
 from __future__ import annotations
@@ -55,6 +61,8 @@ def get_trend(candles: List[List]) -> Optional[str]:
 
     # Simple EMA calculation without pandas_ta dependency
     def calc_ema(prices, period):
+        if not prices:
+            raise ValueError("prices cannot be empty.")
         k = 2 / (period + 1)
         ema = prices[0]
         for price in prices[1:]:
@@ -78,7 +86,7 @@ def get_trend(candles: List[List]) -> Optional[str]:
 def generate_orb_signal(
     candles: List[List],
     already_traded: bool = False,
-    historical_candles: List[List] = None,
+    historical_candles: Optional[List[List]] = None,
 ) -> Dict[str, Any]:
     """
     Generate ORB signal.
@@ -106,6 +114,12 @@ def generate_orb_signal(
         return {**NO_TRADE, "reason": "Max trades reached for today."}
 
     candles = sorted(candles, key=lambda c: c[0])
+    for candle in candles:
+        if len(candle) < 5:
+            return {
+                **NO_TRADE,
+                "reason": "Invalid candle data.",
+            }
 
     # Cutoff time check
     if candles and candles[-1][0][11:16] > orb_config.ORB_SIGNAL_CUTOFF:

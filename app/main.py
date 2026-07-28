@@ -18,8 +18,13 @@ Run with:
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from datetime import datetime, time as dtime
 from typing import Any, Dict, List, Optional
+from app.constants import TRADE_CLOSED
+from app.constants import TRADE_OPEN
+from app.constants import MANUAL_EXIT
+from app.constants import TIME_EXIT
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -114,7 +119,7 @@ def _today_str() -> str:
 def get_today_closed_trades() -> List[Dict[str, Any]]:
     """All trades closed today, used for daily loss / trade-count limits."""
 
-    closed = repository.list_trades(status="CLOSED")
+    closed = repository.list_trades(status=TRADE_CLOSED)
     today = _today_str()
 
     return [t for t in closed if (t.get("entry_time") or "").startswith(today)]
@@ -131,7 +136,7 @@ def get_capital_state() -> Dict[str, float]:
 
     realized_today = round(sum(t["net_pnl"] or 0 for t in closed_today), 2)
 
-    all_closed = repository.list_trades(status="CLOSED")
+    all_closed = repository.list_trades(status=TRADE_CLOSED)
     realized_total = round(sum(t["net_pnl"] or 0 for t in all_closed), 2)
 
     capital = round(strategy.STARTING_CAPITAL + realized_total, 2)
@@ -143,6 +148,14 @@ def get_capital_state() -> Dict[str, float]:
         "trades_today_count": len(closed_today),
         "daily_target_reached": realized_today >= strategy.MIN_DAILY_PROFIT_RUPEES,
     }
+
+
+async def run_blocking(func, *args, **kwargs):
+    """
+    Run blocking/synchronous work in a background thread so the asyncio
+    event loop remains responsive.
+    """
+    return await asyncio.to_thread(partial(func, *args, **kwargs))
 
 
 async def broadcast_state() -> None:
@@ -177,7 +190,11 @@ async def price_ticker_loop() -> None:
         try:
             if is_market_hours():
                 token = auth.get_token()
-                spot_price = market.get_ltp(token, INSTRUMENT_KEY)
+                spot_price = await run_blocking(
+                    market.get_ltp,
+                    token,
+                    INSTRUMENT_KEY,
+                )
                 _latest_state["spot_price"] = spot_price
                 await broadcast_state()
 
@@ -204,7 +221,7 @@ async def live_loop() -> None:
             if not is_market_hours():
                 _latest_state.update(
                     {
-                        "market_status": "CLOSED",
+                        "market_status": TRADE_CLOSED,
                         "updated_at": datetime.now().isoformat(),
                     }
                 )
@@ -214,7 +231,8 @@ async def live_loop() -> None:
 
             token = auth.get_token()
 
-            candles_5m = market.get_intraday_candles(
+            candles_5m = await run_blocking(
+                market.get_intraday_candles,
                 token=token,
                 instrument_key=INSTRUMENT_KEY,
                 unit="minutes",
@@ -229,7 +247,7 @@ async def live_loop() -> None:
             else:
                 await _evaluate_new_trade(token)
 
-            _latest_state["market_status"] = "OPEN"
+            _latest_state["market_status"] = TRADE_OPEN
             _latest_state["updated_at"] = datetime.now().isoformat()
 
         except (AuthenticationError, MarketDataError) as exc:
@@ -251,10 +269,15 @@ async def live_loop() -> None:
 async def _evaluate_new_trade(token: str) -> None:
     """Run the decision engine, open a demo trade, and generate a recommendation if warranted."""
 
-    candles = market.get_multi_timeframe_candles(token, INSTRUMENT_KEY)
+    candles = await run_blocking(
+        market.get_multi_timeframe_candles,
+        token,
+        INSTRUMENT_KEY,
+    )
 
     if strategy.SIGNAL_MODE == "ORB":
-        candles_5m_today = market.get_intraday_candles(
+        candles_5m_today = await run_blocking(
+            market.get_intraday_candles,
             token=token,
             instrument_key=INSTRUMENT_KEY,
             unit="minutes",
@@ -320,7 +343,8 @@ async def _evaluate_new_trade(token: str) -> None:
         # try_generate re-uses the same result via a fresh evaluate() call
         # internally so we call it once from the live loop — not twice.
         try:
-            recommendation_engine.try_generate(
+            await run_blocking(
+                recommendation_engine.try_generate,
                 token=token,
                 instrument_key=INSTRUMENT_KEY,
                 candles_5m=candles["5m"],
@@ -337,7 +361,11 @@ async def _evaluate_new_trade(token: str) -> None:
     for rec in recommendation_engine.today_recommendations():
         if rec["status"] in ("WAITING", "ACTIVE"):
             try:
-                recommendation_engine.update_lifecycle(token, rec["rec_id"])
+                await run_blocking(
+                    recommendation_engine.update_lifecycle,
+                    token,
+                    rec["rec_id"],
+                )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Recommendation lifecycle update failed: %s", exc)
 
@@ -354,7 +382,11 @@ async def _manage_open_trade(token: str, open_trade: Dict[str, Any]) -> None:
     from app.config import MIN_PROFIT_RUPEES
 
     instrument_key = open_trade["instrument_key"]
-    current_premium = market.get_ltp(token, instrument_key)
+    current_premium = await run_blocking(
+        market.get_ltp,
+        token,
+        instrument_key,
+    )
 
     entry = open_trade["entry_price"]
     stop_loss = open_trade["stop_loss"]
@@ -395,7 +427,7 @@ async def _manage_open_trade(token: str, open_trade: Dict[str, Any]) -> None:
     current_time = datetime.now().strftime("%H:%M")
 
     if current_time >= "15:15":
-        exit_reason = "TIME_EXIT"
+        exit_reason = TIME_EXIT
     elif current_premium <= stop_loss:
         exit_reason = constants.STOP_LOSS_HIT
     elif current_premium >= target:
@@ -565,12 +597,16 @@ async def manual_exit() -> Dict[str, Any]:
 
     try:
         token = auth.get_token()
-        current_premium = market.get_ltp(token, open_trade["instrument_key"])
+        current_premium = await run_blocking(
+            market.get_ltp,
+            token,
+            open_trade["instrument_key"],
+        )
 
         net_pnl = repository.close_trade(
             trade_id=open_trade["trade_id"],
             exit_price=current_premium,
-            exit_reason="MANUAL_EXIT",
+            exit_reason=MANUAL_EXIT,
         )
 
         _latest_state["open_position"] = None

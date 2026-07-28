@@ -1,10 +1,16 @@
+from app.constants import (
+    TRADE_OPEN,
+    TRADE_CLOSED,
+    TRADE_CANCELLED,
+)
+
 """
 Database schema definitions.
 
 All CREATE TABLE statements live here.
 """
 
-CREATE_PAPER_TRADES_TABLE = """
+CREATE_PAPER_TRADES_TABLE = f"""
 CREATE TABLE IF NOT EXISTS paper_trades (
 
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,7 +25,7 @@ CREATE TABLE IF NOT EXISTS paper_trades (
     strike REAL NOT NULL,
     expiry TEXT NOT NULL,
 
-    quantity INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK(quantity > 0),
 
     entry_price REAL NOT NULL,
     exit_price REAL,
@@ -27,7 +33,8 @@ CREATE TABLE IF NOT EXISTS paper_trades (
     stop_loss REAL NOT NULL,
     target REAL NOT NULL,
 
-    status TEXT NOT NULL,
+    status TEXT NOT NULL
+    CHECK(status IN ('{TRADE_OPEN}', '{TRADE_CLOSED}', '{TRADE_CANCELLED}')),
 
     confidence INTEGER DEFAULT 0,
     score INTEGER DEFAULT 0,

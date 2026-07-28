@@ -1,5 +1,4 @@
-from typing import Dict
-from typing import List
+from typing import Dict, List
 from app.indicator_utils import true_range, wilder_smoothing
 
 import numpy as np
@@ -241,18 +240,21 @@ def vwap(
     cumulative_tpv = np.cumsum(tpv)
     cumulative_volume = np.cumsum(volume)
 
+    if np.any(cumulative_volume == 0):
+        raise ValueError("Cumulative volume contains zero.")
+
     vwap_values = cumulative_tpv / cumulative_volume
 
     return vwap_values.tolist()
 
 
 def supertrend(
-    high,
-    low,
-    close,
-    length=10,
-    multiplier=3,
-):
+    high: List[float],
+    low: List[float],
+    close: List[float],
+    length: int = 10,
+    multiplier: float = 3.0,
+) -> Dict[str, List[float]]:
     """
     TradingView-compatible SuperTrend using pandas-ta.
 
@@ -289,6 +291,9 @@ def supertrend(
         length=length,
         multiplier=multiplier,
     )
+
+    if st is None or st.empty:
+        raise ValueError("Unable to calculate SuperTrend.")
 
     return {
         "supertrend": st[f"SUPERT_{length}_{multiplier}"].tolist(),

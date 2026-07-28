@@ -61,9 +61,12 @@ class UpstoxAuth:
         except json.JSONDecodeError as exc:
             raise ValueError("Invalid JSON inside token file.") from exc
 
+        except OSError as exc:
+            raise ValueError(f"Unable to read token file: {self.token_file}") from exc
+
         token: Optional[str] = data.get("access_token")
 
-        if not token or not token.strip():
+        if not isinstance(token, str) or not token.strip():
             raise ValueError("access_token is missing or empty.")
 
         return token.strip()
