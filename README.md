@@ -13,8 +13,31 @@ any broker integration is added.
 ## Architecture
 
 ```
-Market Data → Indicators → Signal Engine → Decision Engine
-    → Risk Engine → Option Selection → Paper Trading → Dashboard
+Market Data
+      │
+      ▼
+Indicators
+      │
+      ▼
+Signal Engine (EMA / ORB)
+      │
+      ▼
+Decision Engine
+      │
+      ▼
+Risk Engine
+      │
+      ▼
+Recommendation Engine
+      │
+      ▼
+Option Selection
+      │
+      ▼
+Paper Trading
+      │
+      ▼
+Analytics + Dashboard
 ```
 
 - `app/market_data.py` — Upstox API client (candles, LTP, option chain/contracts)
@@ -71,9 +94,15 @@ and spot prices are always fetched live from Upstox.
 ## Testing
 
 ```bash
-python3 test_trade_repository.py
-python3 test_risk_management.py
-python3 test_analytics.py
+Representative tests:
+
+python test_auth.py
+python test_market_data.py
+python test_signal_engine.py
+python test_option_service.py
+python test_trade_repository.py
+python test_analytics.py
+python test_risk.py
 ```
 
 The remaining `test_*.py` files are live-integration tests that require
@@ -81,5 +110,76 @@ a valid `token.json` and an active market/API connection.
 
 ## Broker Integration
 
-Not part of this phase. `app/order.py` is a reserved placeholder — no
-order-placement logic exists anywhere in this codebase.
+Broker integration is **not part of the current project scope**.
+
+This application is a **manual, demo-only trading assistant**. It uses live market data from the Upstox API together with a paper trading engine for strategy validation. **No real broker orders are placed.**
+
+The `app/order.py` module is intentionally reserved for future broker integration. It currently contains **no order-placement logic** and serves as a placeholder so that real broker routing can be added in a future phase without changing the existing architecture.
+
+
+- app/recommendation_engine.py — generates actionable trade recommendations
+- app/signal_engine_orb.py — Opening Range Breakout strategy
+- app/strategy_orb.py — ORB configuration
+- app/notifier.py — notification framework
+- app/models.py — shared dataclasses
+- app/core/exceptions.py — project-wide exceptions
+
+## Features
+
+- Live Upstox market data
+- EMA strategy
+- ORB strategy
+- Multi-timeframe analysis
+- Dynamic option selection
+- Risk management
+- Paper trading engine
+- Live dashboard
+- Trade analytics
+- Trade recommendations
+- WebSocket live updates
+- Manual exit
+- Instrument switching
+
+trading_bot/
+│
+├── app/
+├── frontend/
+├── database/
+├── backtest.py
+├── backtest_orb.py
+├── requirements.txt
+└── README.md
+
+## Dashboard
+
+The web dashboard provides:
+
+- Live candlestick chart
+- Market status
+- Signal display
+- Current paper position
+- Recommendations
+- Trade history
+- Capital and P/L
+- Analytics
+
+## Current Status
+
+Current mode:
+
+- Live market data
+- Live option chain
+- Live recommendations
+- Paper trading
+- Manual execution only
+
+Real broker order placement is intentionally disabled.
+
+## Roadmap
+
+- Broker integration
+- Docker deployment
+- PostgreSQL support
+- Automated testing
+- Telegram notifications
+- Multi-account support
