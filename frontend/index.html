@@ -330,6 +330,419 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 14px;
     }
+
+    /* ---------- Settings Button ---------- */
+    .settings-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .15s;
+    }
+
+    .settings-btn:hover {
+      background: #1d2230;
+      border-color: rgba(96, 165, 250, .4);
+      transform: translateY(-1px);
+    }
+
+    .settings-btn:active {
+      transform: translateY(0);
+    }
+
+    .settings-btn .gear {
+      font-size: 14px;
+      transition: transform .4s ease;
+    }
+
+    .settings-btn:hover .gear {
+      transform: rotate(75deg);
+    }
+
+    .settings-btn .btn-label {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 600px) {
+      .settings-btn {
+        padding: 7px 9px;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        justify-content: center;
+      }
+
+      .settings-btn .btn-label {
+        display: none;
+      }
+    }
+
+    /* ---------- Settings Modal ---------- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 8, 12, .6);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: linear-gradient(180deg, #151923, var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .02);
+      padding: 22px 22px 24px;
+      transform: translateY(16px) scale(.98);
+      transition: transform .28s cubic-bezier(.22, 1, .36, 1);
+    }
+
+    .modal-overlay.open .modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .modal-head h2 {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: .2px;
+    }
+
+    .modal-close {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s, color .2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(251, 113, 133, .12);
+      color: var(--rose);
+    }
+
+    .modal-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .modal-desc {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .input-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 11px 40px 11px 13px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .input-wrap input:focus {
+      border-color: rgba(96, 165, 250, .55);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, .15);
+    }
+
+    .input-wrap .toggle-eye {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .input-wrap .toggle-eye:hover {
+      color: var(--text);
+    }
+
+    .token-status-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 13px;
+      margin-bottom: 18px;
+      font-size: 12px;
+    }
+
+    .token-status-card .dotstat {
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .token-status-card .tsc-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .token-status-card .tsc-title {
+      font-weight: 600;
+      font-size: 12.5px;
+    }
+
+    .token-status-card .tsc-sub {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .btn-primary-full {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #2dd4bf, #22b8a3);
+      color: #06231e;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 13.5px;
+      letter-spacing: .2px;
+      cursor: pointer;
+      transition: filter .2s, transform .15s;
+    }
+
+    .btn-primary-full:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary-full {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+
+    .btn-secondary-full:hover {
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    @media (max-width: 600px) {
+      .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      .modal-card {
+        max-width: none;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+      }
+
+      .modal-overlay.open .modal-card {
+        transform: translateY(0);
+      }
+    }
+
+    /* ---------- Toasts ---------- */
+    .toast-stack {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    @media (max-width: 600px) {
+      .toast-stack {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        top: 14px;
+        align-items: center;
+        width: calc(100% - 24px);
+      }
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: #151923;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 15px;
+      font-size: 12.5px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+      opacity: 0;
+      transform: translateX(24px);
+      transition: opacity .25s ease, transform .25s ease;
+      max-width: 320px;
+    }
+
+    @media (max-width: 600px) {
+      .toast {
+        transform: translateY(-16px);
+        width: 100%;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+      }
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast.success {
+      border-color: rgba(45, 212, 191, .4);
+    }
+
+    .toast.success .toast-ico {
+      color: var(--teal);
+    }
+
+    .toast.error {
+      border-color: rgba(251, 113, 133, .4);
+    }
+
+    .toast.error .toast-ico {
+      color: var(--rose);
+    }
+
+    .toast-ico {
+      font-size: 15px;
+    }
+
+    /* ---------- Trade Book Filters ---------- */
+    .tb-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .tb-input {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      outline: none;
+    }
+
+    .tb-input:focus {
+      border-color: rgba(96, 165, 250, .5);
+    }
+
+    .tb-sep {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .tb-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+
+    .tb-reset:hover {
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    @media (max-width: 600px) {
+      .tb-filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .tb-input,
+      .tb-reset {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
@@ -352,6 +765,9 @@
         <option value="BANKNIFTY">BANKNIFTY</option>
       </select>
       <div class="status-pill" id="marketStatus">CONNECTING…</div>
+      <button id="settingsBtn" class="settings-btn" title="Settings" aria-label="Settings">
+        <span class="gear">⚙</span><span class="btn-label">Settings</span>
+      </button>
     </div>
   </header>
 
@@ -364,23 +780,52 @@
 
       <div class="panel">
         <div class="panel-title">Trade Book</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Symbol</th>
-              <th>Type</th>
-              <th>Entry</th>
-              <th>Exit</th>
-              <th>P/L</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tradesBody">
-            <tr class="empty-row">
-              <td colspan="6">No trades yet</td>
-            </tr>
-          </tbody>
-        </table>
+
+        <div class="tb-filters">
+          <input type="date" id="tbFromDate" class="tb-input">
+          <span class="tb-sep">to</span>
+          <input type="date" id="tbToDate" class="tb-input">
+          <select id="tbStatus" class="tb-input">
+            <option value="ALL">All Status</option>
+            <option value="OPEN">Open</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+          <select id="tbReason" class="tb-input">
+            <option value="ALL">All Exit Reasons</option>
+            <option value="STOP_LOSS_HIT">Stop Loss Hit</option>
+            <option value="TARGET_HIT">Target Hit</option>
+            <option value="MANUAL_EXIT">Manual Exit</option>
+          </select>
+          <input type="text" id="tbSymbol" class="tb-input" placeholder="Search symbol…">
+          <button id="tbResetBtn" class="tb-reset">Reset</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Type</th>
+                <th>Entry Date</th>
+                <th>Entry Time</th>
+                <th>Exit Time</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>SL</th>
+                <th>Target</th>
+                <th>Qty</th>
+                <th>P/L</th>
+                <th>Status</th>
+                <th>Exit Reason</th>
+              </tr>
+            </thead>
+            <tbody id="tradesBody">
+              <tr class="empty-row">
+                <td colspan="13">No trades yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -436,7 +881,39 @@
       <div style="color:var(--text-dim);font-size:13px;">No recommendations yet today.</div>
     </div>
   </section>
+  <div id="tokenModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2><span>⚙</span> Settings</h2>
+        <button id="closeTokenBtn" class="modal-close" aria-label="Close">✕</button>
+      </div>
 
+      <div class="modal-section-title">Upstox Access Token</div>
+      <div class="modal-desc">Paste today's Upstox access token.</div>
+
+      <div class="input-wrap">
+        <input id="accessToken" type="password" placeholder="Paste Access Token" autocomplete="off">
+        <button type="button" class="toggle-eye" id="toggleEyeBtn" aria-label="Show/Hide password">👁</button>
+      </div>
+
+      <div class="token-status-card" id="tokenStatusCard">
+        <span class="dotstat">⚪</span>
+        <div class="tsc-text">
+          <span class="tsc-title">Checking token…</span>
+          <span class="tsc-sub" id="tokenStatusSub"></span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="saveTokenBtn" class="btn-primary-full">Update Token</button>
+        <button id="closeCancelBtn" class="btn-secondary-full">Cancel</button>
+      </div>
+
+      <p id="tokenMessage" style="display:none;"></p>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
   <script>
     const API_BASE = window.location.origin;
     const WS_URL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/live';
@@ -654,6 +1131,73 @@
       }
     }
 
+    let allTrades = [];
+
+    function splitDateTime(iso) {
+      if (!iso) return { date: '—', time: '—' };
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return { date: '—', time: '—' };
+      const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return { date, time };
+    }
+
+    function applyTradeFilters() {
+      const from = document.getElementById('tbFromDate').value;
+      const to = document.getElementById('tbToDate').value;
+      const status = document.getElementById('tbStatus').value;
+      const reason = document.getElementById('tbReason').value;
+      const symbolQ = document.getElementById('tbSymbol').value.trim().toUpperCase();
+
+      const filtered = allTrades.filter(t => {
+        if (status !== 'ALL' && t.status !== status) return false;
+        if (reason !== 'ALL' && t.exit_reason !== reason) return false;
+        if (symbolQ && !(`${t.symbol} ${t.option_type}`.toUpperCase().includes(symbolQ))) return false;
+
+        if (from || to) {
+          const entryDate = t.entry_time ? new Date(t.entry_time) : null;
+          if (!entryDate) return false;
+          const dayStr = entryDate.toISOString().slice(0, 10);
+          if (from && dayStr < from) return false;
+          if (to && dayStr > to) return false;
+        }
+        return true;
+      });
+
+      renderTrades(filtered);
+    }
+
+    function renderTrades(trades) {
+      const body = document.getElementById('tradesBody');
+
+      if (!trades || trades.length === 0) {
+        body.innerHTML = '<tr class="empty-row"><td colspan="13">No trades match these filters</td></tr>';
+        return;
+      }
+
+      body.innerHTML = trades.slice(0, 100).map(t => {
+        const entry = splitDateTime(t.entry_time);
+        const exit = splitDateTime(t.exit_time);
+        return `
+      <tr>
+        <td>${t.symbol}</td>
+        <td>${t.option_type}</td>
+        <td>${entry.date}</td>
+        <td>${entry.time}</td>
+        <td>${t.exit_time ? exit.time : '—'}</td>
+        <td>${fmt(t.entry_price)}</td>
+        <td>${t.exit_price !== null ? fmt(t.exit_price) : '—'}</td>
+        <td>${fmt(t.stop_loss)}</td>
+        <td>${fmt(t.target)}</td>
+        <td>${t.quantity ?? '—'}</td>
+        <td class="${pnlClass(t.net_pnl)}">${t.net_pnl !== null ? fmt(t.net_pnl) : '—'}</td>
+        <td>${t.status}</td>
+        <td>${t.exit_reason || '—'}</td>
+      </tr>
+    `;
+      }).join('');
+    }
+
     async function loadTrades() {
       try {
         const res = await fetch(`${API_BASE}/api/trades`);
@@ -661,27 +1205,25 @@
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
-        const body = document.getElementById('tradesBody');
-
-        if (!data.trades || data.trades.length === 0) {
-          body.innerHTML = '<tr class="empty-row"><td colspan="6">No trades yet</td></tr>';
-          return;
-        }
-
-        body.innerHTML = data.trades.slice(0, 25).map(t => `
-      <tr>
-        <td>${t.symbol}</td>
-        <td>${t.option_type}</td>
-        <td>${fmt(t.entry_price)}</td>
-        <td>${t.exit_price !== null ? fmt(t.exit_price) : '—'}</td>
-        <td class="${pnlClass(t.net_pnl)}">${t.net_pnl !== null ? fmt(t.net_pnl) : '—'}</td>
-        <td>${t.status}</td>
-      </tr>
-    `).join('');
+        allTrades = data.trades || [];
+        applyTradeFilters();
       } catch (e) {
         console.error('Failed to load trades', e);
       }
     }
+
+    ['tbFromDate', 'tbToDate', 'tbStatus', 'tbReason'].forEach(id => {
+      document.getElementById(id).addEventListener('change', applyTradeFilters);
+    });
+    document.getElementById('tbSymbol').addEventListener('input', applyTradeFilters);
+    document.getElementById('tbResetBtn').addEventListener('click', () => {
+      document.getElementById('tbFromDate').value = '';
+      document.getElementById('tbToDate').value = '';
+      document.getElementById('tbStatus').value = 'ALL';
+      document.getElementById('tbReason').value = 'ALL';
+      document.getElementById('tbSymbol').value = '';
+      applyTradeFilters();
+    });
 
     async function loadAnalytics() {
       try {
@@ -837,6 +1379,113 @@
       ws.onerror = () => ws.close();
     }
 
+    const modal = document.getElementById("tokenModal");
+
+    function openModal() {
+      modal.classList.add("open");
+      loadTokenStatus();
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+    }
+
+    function showToast(message, type = "success") {
+      const stack = document.getElementById("toastStack");
+      const toast = document.createElement("div");
+      toast.className = `toast ${type}`;
+      const icon = type === "success" ? "🟢" : "🔴";
+      toast.innerHTML = `<span class="toast-ico">${icon}</span><span>${message}</span>`;
+      stack.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add("show"));
+      setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    document.getElementById("settingsBtn").onclick = openModal;
+    document.getElementById("closeTokenBtn").onclick = closeModal;
+    document.getElementById("closeCancelBtn").onclick = closeModal;
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.getElementById("toggleEyeBtn").onclick = () => {
+      const input = document.getElementById("accessToken");
+      const eyeBtn = document.getElementById("toggleEyeBtn");
+      if (input.type === "password") {
+        input.type = "text";
+        eyeBtn.textContent = "🙈";
+      } else {
+        input.type = "password";
+        eyeBtn.textContent = "👁";
+      }
+    };
+
+    document.getElementById("saveTokenBtn").onclick = async () => {
+
+      const token =
+        document.getElementById("accessToken").value.trim();
+
+      if (!token) {
+        showToast("Please enter access token.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            access_token: token
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast("Token updated successfully.", "success");
+          closeModal();
+          document.getElementById("accessToken").value = "";
+          loadTokenStatus();
+        } else {
+          showToast(data.message || "Failed to update token.", "error");
+        }
+      } catch (e) {
+        showToast("Network error. Please try again.", "error");
+      }
+    };
+
+    function renderTokenStatus(data) {
+      const card = document.getElementById("tokenStatusCard");
+      const dot = card.querySelector(".dotstat");
+      const title = card.querySelector(".tsc-title");
+      const sub = document.getElementById("tokenStatusSub");
+
+      if (data && (data.configured || data.has_token || data.token_preview)) {
+        dot.textContent = "🟢";
+        title.textContent = "Token Configured";
+        sub.textContent = data.token_preview ? `********${data.token_preview}` : "";
+      } else {
+        dot.textContent = "🔴";
+        title.textContent = "No Token Found";
+        sub.textContent = "";
+      }
+    }
+
+    async function loadTokenStatus() {
+      try {
+        const res = await fetch("/api/token");
+        const data = await res.json();
+        renderTokenStatus(data);
+      } catch (e) {
+        console.error('Failed to load token status', e);
+      }
+    }
+
     connectWebSocket();
     loadTrades();
     loadAnalytics();
@@ -846,6 +1495,7 @@
     setInterval(loadAnalytics, 15000);
     setInterval(loadCapital, 10000);
     setInterval(loadRecommendations, 10000);
+    loadTokenStatus();
   </script>
 
 </body>

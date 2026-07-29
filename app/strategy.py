@@ -135,7 +135,7 @@ ENTRY_RANGE_PERCENT = 2.0
 # Label shown on published recommendations, describing the confirmation
 # logic actually used (multi-timeframe trend + entry confirmation).
 STRATEGY_NAME = "Multi-Timeframe EMA + MACD + RSI Confirmation"
-MIN_DAILY_PROFIT_RUPEES = 1000.0
+MIN_DAILY_PROFIT_RUPEES = 10000.0
 if MIN_DAILY_PROFIT_RUPEES < 0:
     raise ValueError("MIN_DAILY_PROFIT_RUPEES cannot be negative.")
 

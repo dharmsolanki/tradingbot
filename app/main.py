@@ -486,6 +486,43 @@ def get_status() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/token")
+def get_token_status() -> Dict[str, Any]:
+    """
+    Returns token configuration status.
+    The actual token is never exposed.
+    """
+
+    return {
+        "configured": auth.is_valid(),
+        "token": auth.get_masked_token() if auth.is_valid() else None,
+    }
+
+
+@app.post("/api/token")
+def update_token(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Update Upstox access token.
+    """
+
+    token = payload.get("access_token", "").strip()
+
+    if not token:
+        return {"success": False, "message": "Access token is required."}
+
+    try:
+        auth.save_token(token)
+
+        logger.info("Access token updated successfully.")
+
+        return {"success": True, "message": "Access token updated successfully."}
+
+    except Exception as exc:
+        logger.exception("Failed to update access token.")
+
+        return {"success": False, "message": str(exc)}
+
+
 @app.get("/api/state")
 def get_state() -> Dict[str, Any]:
     """Full latest live state (same payload pushed over WebSocket)."""

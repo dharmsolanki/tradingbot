@@ -70,3 +70,32 @@ class UpstoxAuth:
             raise ValueError("access_token is missing or empty.")
 
         return token.strip()
+
+    def save_token(self, token: str) -> None:
+        """
+        Save access token to token.json.
+        """
+
+        token = token.strip()
+
+        if not token:
+            raise ValueError("Access token cannot be empty.")
+
+        data = {"access_token": token}
+
+        with open(self.token_file, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
+
+    def get_masked_token(self) -> str:
+        """
+        Returns masked access token.
+        Example:
+        ************abcd
+        """
+
+        token = self.get_token()
+
+        if len(token) <= 4:
+            return "*" * len(token)
+
+        return "*" * (len(token) - 4) + token[-4:]
