@@ -8,6 +8,7 @@ def calculate_position_size(
     capital: float,
     risk_per_unit: float,
     lot_size: int,
+    premium: float,
 ) -> int:
     """
     Determine how many lots to trade based on capital and risk per trade.
@@ -38,13 +39,21 @@ def calculate_position_size(
         raise RiskValidationError("risk_per_unit and lot_size must be positive.")
 
     max_risk_rupees = capital * strategy.MAX_RISK_PER_TRADE / 100
-
     risk_per_lot = risk_per_unit * lot_size
 
+    # Cost of one lot
+    one_lot_cost = premium * lot_size
+
+    # Agar risk limit exceed ho rahi hai,
+    # lekin account me ek lot kharidne jitna capital hai,
+    # to minimum 1 lot allow karo.
+
     if risk_per_lot > max_risk_rupees:
+        if one_lot_cost <= capital:
+            return 1
         return 0
 
-    return max(0, math.floor(max_risk_rupees / risk_per_lot))
+    return max(1, math.floor(max_risk_rupees / risk_per_lot))
 
 
 def check_daily_loss_limit(

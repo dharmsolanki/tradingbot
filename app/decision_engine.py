@@ -120,9 +120,8 @@ class DecisionEngine:
                 historical_candles=candles_15m,  # trend ke liye lookback
             )
             # Normalise ORB signal to same shape as EMA signal
-            signal["trend"] = signal.get("reason", "ORB")
-            signal["entry"] = {"reasons": [signal.get("reason", "")], "score": 0}
-            signal["option_type"] = signal.get("option_type")
+            # ORB signal already contains required values
+            signal.setdefault("trend", None)
         else:
             indicators = calculate_indicators_multi_timeframe(candles_5m, candles_15m)
             signal = generate_signal_v2(indicators["5m"], indicators["15m"])
@@ -138,7 +137,6 @@ class DecisionEngine:
                     )
                 ],
             }
-
         if signal["confidence"] < strategy.MIN_CONFIDENCE:
             return {
                 "decision": "NO_TRADE",
@@ -187,12 +185,20 @@ class DecisionEngine:
 
         # ---------- Trade Plan (Entry / SL / Target) ----------
 
-        pseudo_signal = {
-            "signal": "BUY",
-            "confidence": signal["confidence"],
-            "score": signal.get("entry", {}).get("score", 0),
-            "reasons": signal.get("entry", {}).get("reasons", []),
-        }
+        if strategy.SIGNAL_MODE == "ORB":
+            pseudo_signal = {
+                "signal": "BUY",
+                "confidence": signal["confidence"],
+                "score": signal["confidence"],
+                "reasons": [signal.get("reason", "")],
+            }
+        else:
+            pseudo_signal = {
+                "signal": "BUY",
+                "confidence": signal["confidence"],
+                "score": signal.get("entry", {}).get("score", 0),
+                "reasons": signal.get("entry", {}).get("reasons", []),
+            }
 
         trade_plan = calculate_trade_levels(pseudo_signal, option)
 
@@ -220,6 +226,7 @@ class DecisionEngine:
             capital=capital,
             risk_per_unit=risk_per_unit,
             lot_size=option["lot_size"],
+            premium=option["ltp"],
         )
 
         if lots < 1:

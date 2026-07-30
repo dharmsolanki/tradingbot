@@ -32,7 +32,7 @@ ORB_MIN_ATR = 30
 
 # Max trades per day via ORB
 ORB_MAX_TRADES = 2
-ORB_SIGNAL_CUTOFF = "13:00"  # No new trades after this time
+ORB_SIGNAL_CUTOFF = "15:00"  # No new trades after this time
 
 # ==========================
 # Configuration Validation

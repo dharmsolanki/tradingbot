@@ -71,3 +71,32 @@ CREATE_INDEXES = [
     ON paper_trades(trade_id);
     """,
 ]
+CREATE_BROKER_ORDERS_TABLE = """
+CREATE TABLE IF NOT EXISTS broker_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    broker_order_id TEXT UNIQUE NOT NULL,
+    recommendation_id TEXT,
+
+    instrument_key TEXT NOT NULL,
+    symbol TEXT,
+
+    transaction_type TEXT NOT NULL,
+    product TEXT NOT NULL,
+    order_type TEXT NOT NULL,
+
+    quantity INTEGER NOT NULL,
+
+    requested_price REAL,
+    average_price REAL,
+
+    status TEXT NOT NULL,
+
+    exchange_order_id TEXT,
+
+    raw_response TEXT,
+
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)
+"""

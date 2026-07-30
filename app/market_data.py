@@ -97,6 +97,193 @@ class MarketData:
                 f"GET {response.url} | Invalid JSON response."
             ) from exc
 
+    def _post(
+        self,
+        endpoint: str,
+        token: str,
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Send a POST request to the Upstox API.
+        """
+
+        url = f"{self.BASE_URL}{endpoint}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = self.session.post(
+                url=url,
+                headers=headers,
+                json=payload,
+                timeout=self.timeout,
+            )
+
+        except requests.exceptions.Timeout as exc:
+            raise MarketDataError(f"POST {url} | Request timed out.") from exc
+
+        except requests.exceptions.ConnectionError as exc:
+            raise MarketDataError(f"POST {url} | Connection failed.") from exc
+
+        except requests.exceptions.RequestException as exc:
+            raise MarketDataError(f"POST {url} | Request failed: {exc}") from exc
+
+        if response.status_code == 401:
+            raise AuthenticationError(
+                f"POST {response.url} | Invalid or expired token."
+            )
+
+        if response.status_code == 429:
+            raise MarketDataError(f"POST {response.url} | API rate limit exceeded.")
+
+        if response.status_code not in (200, 201):
+            raise MarketDataError(
+                f"POST {response.url} | "
+                f"Status: {response.status_code} | "
+                f"Response: {response.text}"
+            )
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise MarketDataError(
+                f"POST {response.url} | Invalid JSON response."
+            ) from exc
+
+    def _delete(
+        self,
+        endpoint: str,
+        token: str,
+    ) -> Dict[str, Any]:
+        """
+        Send a DELETE request to the Upstox API.
+        """
+
+        url = f"{self.BASE_URL}{endpoint}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+
+        try:
+            response = self.session.delete(
+                url=url,
+                headers=headers,
+                timeout=self.timeout,
+            )
+
+        except requests.exceptions.Timeout as exc:
+            raise MarketDataError(f"DELETE {url} | Request timed out.") from exc
+
+        except requests.exceptions.ConnectionError as exc:
+            raise MarketDataError(f"DELETE {url} | Connection failed.") from exc
+
+        except requests.exceptions.RequestException as exc:
+            raise MarketDataError(f"DELETE {url} | Request failed: {exc}") from exc
+
+        if response.status_code == 401:
+            raise AuthenticationError(
+                f"DELETE {response.url} | Invalid or expired token."
+            )
+
+        if response.status_code == 429:
+            raise MarketDataError(f"DELETE {response.url} | API rate limit exceeded.")
+
+        if response.status_code not in (200, 204):
+            raise MarketDataError(
+                f"DELETE {response.url} | "
+                f"Status: {response.status_code} | "
+                f"Response: {response.text}"
+            )
+
+        if response.status_code == 204:
+            return {"status": "success"}
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise MarketDataError(
+                f"DELETE {response.url} | Invalid JSON response."
+            ) from exc
+
+    def get_funds(
+        self,
+        token: str,
+    ) -> Dict[str, Any]:
+        """
+        Fetch available funds and margin details from Upstox.
+
+        Returns:
+            {
+                "available_margin": ...,
+                "used_margin": ...,
+                "equity": ...,
+                ...
+            }
+        """
+
+        data = self._get(
+            endpoint="/v2/user/get-funds-and-margin",
+            token=token,
+        )
+
+        return data.get("data", {})
+
+    def get_positions(
+        self,
+        token: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch all current positions.
+        """
+
+        data = self._get(
+            endpoint="/v2/portfolio/short-term-positions",
+            token=token,
+        )
+
+        return data.get("data", [])
+
+    def get_orders(
+        self,
+        token: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch order book.
+        """
+
+        data = self._get(
+            endpoint="/v2/order/retrieve-all",
+            token=token,
+        )
+
+        return data.get("data", [])
+
+    def place_order(
+        self,
+        token: str,
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Place an order through Upstox.
+
+        Args:
+            token: Upstox access token.
+            payload: Order payload as per Upstox API.
+
+        Returns:
+            API response.
+        """
+
+        return self._post(
+            endpoint="/v2/order/place",
+            token=token,
+            payload=payload,
+        )
+
     def get_ltp(
         self,
         token: str,

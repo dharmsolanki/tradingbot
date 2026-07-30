@@ -15,6 +15,9 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from app import strategy_orb as orb_config
 from app import strategy
+from app.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_opening_range(candles: List[List]) -> Optional[Dict[str, Any]]:
@@ -146,6 +149,14 @@ def generate_orb_signal(
     all_candles = sorted((historical_candles or []) + candles, key=lambda c: c[0])
     trend_direction = get_trend(all_candles)
 
+    logger.info(
+        "ORB DEBUG | Close=%.2f | RangeHigh=%.2f | RangeLow=%.2f | Trend=%s",
+        close,
+        range_high,
+        range_low,
+        trend_direction,
+    )
+
     # Confidence based on trend alignment
     def confidence(option_type):
         if trend_direction == "BULLISH" and option_type == "CE":
@@ -156,20 +167,47 @@ def generate_orb_signal(
             return 78  # below 80 will be blocked by MIN_CONFIDENCE
         return 70  # counter-trend — low confidence, will be blocked
 
-    # CE breakout
-    if close > range_high:
+    # -----------------------------------------
+    # Breakout Confirmation
+    # -----------------------------------------
+
+    if orb_config.ORB_CONFIRMATION == "CLOSE":
+        ce_breakout = close > range_high
+        pe_breakout = close < range_low
+
+    elif orb_config.ORB_CONFIRMATION == "HIGH_LOW":
+        ce_breakout = latest[2] > range_high  # Candle High
+        pe_breakout = latest[3] < range_low  # Candle Low
+
+    else:
+        ce_breakout = False
+        pe_breakout = False
+
+    # CE Breakout
+    if ce_breakout:
+        logger.info(
+            "ORB BUY CE | Close=%.2f crossed RangeHigh=%.2f",
+            close,
+            range_high,
+        )
+
         if trend_direction == "BEARISH":
             return {
                 **NO_TRADE,
                 "reason": "CE breakout but trend BEARISH — counter-trend, skipping.",
             }
 
-        sl = round(latest[3] - 10, 2)  # 10 points buffer neeche
+        sl = round(latest[3] - 10, 2)
         risk = close - sl
+
         if risk <= 0:
-            return {**NO_TRADE, "reason": "Invalid SL — candle low above close."}
+            return {
+                **NO_TRADE,
+                "reason": "Invalid SL — candle low above close.",
+            }
 
         conf = confidence("CE")
+
         return {
             "signal": "BUY",
             "option_type": "CE",
@@ -179,23 +217,34 @@ def generate_orb_signal(
             "range_high": range_high,
             "range_low": range_low,
             "confidence": conf,
-            "reason": f"ORB CE breakout | Trend: {trend_direction} | Range: {range_low}–{range_high} ({range_size} pts)",
+            "reason": f"ORB CE breakout | Trend: {trend_direction} | Range: {range_low}-{range_high} ({range_size} pts)",
         }
 
-    # PE breakout
-    if close < range_low:
+    # PE Breakout
+    if pe_breakout:
+        logger.info(
+            "ORB BUY PE | Close=%.2f crossed RangeLow=%.2f",
+            close,
+            range_low,
+        )
+
         if trend_direction == "BULLISH":
             return {
                 **NO_TRADE,
                 "reason": "PE breakout but trend BULLISH — counter-trend, skipping.",
             }
 
-        sl = round(latest[2] + 10, 2)  # 10 points buffer upar
+        sl = round(latest[2] + 10, 2)
         risk = sl - close
+
         if risk <= 0:
-            return {**NO_TRADE, "reason": "Invalid SL — candle high below close."}
+            return {
+                **NO_TRADE,
+                "reason": "Invalid SL — candle high below close.",
+            }
 
         conf = confidence("PE")
+
         return {
             "signal": "BUY",
             "option_type": "PE",
@@ -205,9 +254,15 @@ def generate_orb_signal(
             "range_high": range_high,
             "range_low": range_low,
             "confidence": conf,
-            "reason": f"ORB PE breakout | Trend: {trend_direction} | Range: {range_low}–{range_high} ({range_size} pts)",
+            "reason": f"ORB PE breakout | Trend: {trend_direction} | Range: {range_low}-{range_high} ({range_size} pts)",
         }
 
+    logger.info(
+        "ORB NO TRADE | Close=%.2f inside %.2f - %.2f",
+        close,
+        range_low,
+        range_high,
+    )
     return {
         **NO_TRADE,
         "reason": f"Price inside range ({range_low}–{range_high}). Waiting for breakout.",

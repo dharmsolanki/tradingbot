@@ -258,6 +258,16 @@ class RecommendationEngine:
             reverse=True,
         )
 
+    def get_recommendation(
+        self,
+        rec_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Return a recommendation by its ID.
+        """
+
+        return self._recommendations.get(rec_id)
+
     # ==========================
     # Internal Helpers
     # ==========================

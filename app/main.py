@@ -16,6 +16,7 @@ Run with:
 """
 
 from __future__ import annotations
+from app.order import OrderService
 
 import asyncio
 from functools import partial
@@ -42,6 +43,7 @@ from app.db import DatabaseManager
 from app.decision_engine import DecisionEngine
 from app.market_data import MarketData
 from app.paper_trader import PaperTrader
+from app.repositories.broker_order_repository import BrokerOrderRepository
 from app.repositories.trade_repository import TradeRepository
 from app.recommendation_engine import RecommendationEngine
 from app.utils import get_logger
@@ -63,7 +65,9 @@ app.add_middleware(
 
 auth = UpstoxAuth(token_file=config.TOKEN_FILE)
 market = MarketData(timeout=config.REQUEST_TIMEOUT_SECONDS)
+order_service = OrderService()
 db = DatabaseManager(db_path=config.PAPER_TRADES_DB_PATH)
+broker_order_repository = BrokerOrderRepository(db)
 repository = TradeRepository(db=db)
 paper_trader = PaperTrader(db_path=config.PAPER_TRADES_DB_PATH)
 paper_trader.repository = repository  # share the same underlying table
@@ -215,10 +219,13 @@ async def live_loop() -> None:
     price_ticker_loop(); this loop handles everything that needs
     5-minute candle data.
     """
+    logger.info("LIVE LOOP RUNNING")
 
+    logger.info("Market Hours = %s", is_market_hours())
     while True:
         try:
             if not is_market_hours():
+                logger.info("Market closed - skipping evaluation")
                 _latest_state.update(
                     {
                         "market_status": TRADE_CLOSED,
@@ -316,15 +323,6 @@ async def _evaluate_new_trade(token: str) -> None:
     if sig:
         trend = sig.get("trend", {})
         entry = sig.get("entry", {})
-        logger.info(
-            "SIGNAL DEBUG | trend=%s(score=%s) entry=%s(score=%s) confidence=%s decision=%s",
-            trend.get("trend") if isinstance(trend, dict) else trend,
-            trend.get("score") if isinstance(trend, dict) else "?",
-            entry.get("entry") if isinstance(entry, dict) else entry,
-            entry.get("score") if isinstance(entry, dict) else "?",
-            sig.get("confidence"),
-            result["decision"],
-        )
 
     if result["decision"] == "TRADE":
         trade_plan = result["trade_plan"]
@@ -621,6 +619,65 @@ async def websocket_live(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         if websocket in _connected_clients:
             _connected_clients.remove(websocket)
+
+
+@app.post("/api/order/place")
+async def place_order(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Place a real broker order from a recommendation.
+    """
+
+    rec_id = payload.get("rec_id")
+
+    if not rec_id:
+        return {"success": False, "message": "rec_id is required."}
+
+    recommendation = recommendation_engine.get_recommendation(rec_id)
+
+    if recommendation is None:
+        return {"success": False, "message": "Recommendation not found."}
+
+    status = recommendation.get("status")
+
+    if status != "WAITING":
+        return {
+            "success": False,
+            "message": f"Recommendation already processed ({status}).",
+        }
+
+    broker_payload = {
+        "quantity": recommendation["quantity"],
+        "product": "D",
+        "validity": "DAY",
+        "price": 0,
+        "tag": "AI_ASSISTANT",
+        "instrument_token": recommendation["instrument_key"],
+        "order_type": "MARKET",
+        "transaction_type": "BUY",
+        "disclosed_quantity": 0,
+        "trigger_price": 0,
+        "is_amo": False,
+    }
+
+    try:
+        response = order_service.place_order(broker_payload)
+
+        broker_order_repository.create_order(
+            recommendation_id=rec_id,
+            response=response,
+            payload=broker_payload,
+        )
+
+        return {
+            "success": True,
+            "broker_response": response,
+        }
+
+    except Exception as exc:
+        return {
+            "success": False,
+            "message": str(exc),
+        }
 
 
 @app.post("/api/trade/exit")

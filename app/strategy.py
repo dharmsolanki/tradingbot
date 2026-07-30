@@ -106,7 +106,7 @@ STRIKE_STEP = 50  # NIFTY
 # ==========================
 
 # Virtual capital for demo trading (not real money).
-STARTING_CAPITAL = 100000.0  # virtual demo capital
+STARTING_CAPITAL = 10000.0  # virtual demo capital
 
 # Stop trading for the day once realized loss exceeds this % of capital.
 MAX_DAILY_LOSS_PERCENT = 3.0
